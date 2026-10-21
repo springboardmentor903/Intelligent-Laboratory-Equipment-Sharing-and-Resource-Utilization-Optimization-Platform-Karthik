@@ -1,0 +1,33 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+application-local.properties
+application-prod.properties
+
+# Java / Maven
+**/target/
+*.class
+*.log
+
+# Node.js / React
+**/node_modules/
+**/dist/
+**/.vite/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Local credentials and private keys
+*.pem
+*.key
+
+#postman and .postman folders
+.postman/
+postman/
