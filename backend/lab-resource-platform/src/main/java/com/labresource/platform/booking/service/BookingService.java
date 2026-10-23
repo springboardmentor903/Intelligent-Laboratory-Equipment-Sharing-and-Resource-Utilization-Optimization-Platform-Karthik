@@ -8,6 +8,7 @@ import com.labresource.platform.equipment.repository.EquipmentRepository;
 import com.labresource.platform.user.entity.User;
 import com.labresource.platform.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,7 +36,19 @@ public class BookingService {
     public Booking getBookingById(Long id) {
         return bookingRepository.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Booking not found with id: " + id));
+                        new IllegalArgumentException(
+                                "Booking not found with id: " + id));
+    }
+
+    public boolean isUserOwner(Long userId, String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+
+        User user = userRepository.findByEmail(email.trim())
+                .orElse(null);
+
+        return user != null && user.getId().equals(userId);
     }
 
     public List<Booking> getBookingsByUser(Long userId) {
@@ -50,15 +63,31 @@ public class BookingService {
         return bookingRepository.findByStatus(status.toUpperCase());
     }
 
-    public Booking createBooking(Booking booking) {
+    @Transactional
+    public Booking createBooking(
+            Booking booking, String authenticatedEmail) {
 
         if (booking.getEquipmentId() == null
-                || booking.getUserId() == null
                 || booking.getStartTime() == null
                 || booking.getEndTime() == null) {
             throw new IllegalArgumentException(
-                    "Equipment, user, start time and end time are required");
+                    "Equipment, start time and end time are required");
         }
+
+        if (authenticatedEmail == null
+                || authenticatedEmail.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Authenticated user is required");
+        }
+
+        User authenticatedUser = userRepository
+                .findByEmail(authenticatedEmail.trim())
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Authenticated user not found"));
+
+        // Never trust the userId submitted by the frontend.
+        booking.setUserId(authenticatedUser.getId());
 
         if (booking.getStartTime().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException(
@@ -70,33 +99,28 @@ public class BookingService {
                     "Booking end time must be after start time");
         }
 
-        if (!equipmentRepository.existsById(booking.getEquipmentId())) {
-            throw new IllegalArgumentException("Equipment not found");
-        }
-
-        if (!userRepository.existsById(booking.getUserId())) {
-            throw new IllegalArgumentException("User not found");
-        }
-
-        Equipment equipment = equipmentRepository.findById(
-                booking.getEquipmentId()).orElseThrow();
+        Equipment equipment = equipmentRepository
+                .findById(booking.getEquipmentId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Equipment not found"));
 
         if (!"AVAILABLE".equalsIgnoreCase(equipment.getStatus())) {
-            throw new IllegalArgumentException("Equipment is not available");
+            throw new IllegalArgumentException(
+                    "Equipment is not available");
         }
+
         boolean hasConflict = bookingRepository
                 .existsByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
                         booking.getEquipmentId(),
                         List.of("PENDING", "APPROVED"),
                         booking.getEndTime(),
-                        booking.getStartTime()
-                );
+                        booking.getStartTime());
 
         if (hasConflict) {
             throw new IllegalArgumentException(
-                    "This equipment already has a booking during the requested time"
-            );
+                    "This equipment already has a booking during the requested time");
         }
+
         booking.setId(null);
         booking.setStatus("PENDING");
         booking.setCreatedAt(LocalDateTime.now());
@@ -104,8 +128,21 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
-    public Booking updateBookingStatus(Long id, String status) {
+    public boolean isBookingOwner(Long bookingId, String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
 
+        Booking booking = getBookingById(bookingId);
+
+        User user = userRepository.findByEmail(email.trim())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found"));
+
+        return user.getId().equals(booking.getUserId());
+    }
+
+    public Booking updateBookingStatus(Long id, String status) {
         Booking booking = getBookingById(id);
 
         if (status == null || status.isBlank()) {
@@ -137,13 +174,14 @@ public class BookingService {
     public Booking cancelBooking(Long id) {
         Booking booking = getBookingById(id);
 
-        if (!List.of("PENDING", "APPROVED").contains(booking.getStatus())) {
+        if (!List.of("PENDING", "APPROVED")
+                .contains(booking.getStatus())) {
             throw new IllegalArgumentException(
-                    "Only pending or approved bookings can be cancelled"
-            );
+                    "Only pending or approved bookings can be cancelled");
         }
 
         booking.setStatus("CANCELLED");
+
         return bookingRepository.save(booking);
     }
 }
