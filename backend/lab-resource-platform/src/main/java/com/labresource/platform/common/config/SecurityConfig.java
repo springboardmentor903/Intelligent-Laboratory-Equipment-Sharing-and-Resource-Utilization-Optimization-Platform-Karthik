@@ -1,4 +1,3 @@
-
 package com.labresource.platform.common.config;
 
 import com.labresource.platform.auth.filter.JwtAuthenticationFilter;
@@ -9,6 +8,7 @@ import com.labresource.platform.user.repository.UserRoleRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -37,9 +37,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    @Order(2)
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtAuthenticationFilter jwtAuthenticationFilter)
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            ApiRateLimitFilter apiRateLimitFilter)
             throws Exception {
 
         http
@@ -66,7 +68,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/password-reset/**",
+                                "/api/auth/oauth2/exchange",
                                 "/api/users/register",
+                                "/api/users/apply-system-admin",
+                                "/api/institutions/register",
                                 "/api/health"
                         ).permitAll()
 
@@ -74,7 +79,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/roles",
-                                "/api/institutions"
+                                "/api/institutions",
+                                "/api/institutions/*/departments/public"
                         ).permitAll()
 
                         // All other endpoints require authentication
@@ -85,6 +91,8 @@ public class SecurityConfig {
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
                 );
+
+        http.addFilterBefore(apiRateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

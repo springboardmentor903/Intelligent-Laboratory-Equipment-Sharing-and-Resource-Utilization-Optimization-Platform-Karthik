@@ -1,7 +1,8 @@
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/axiosInstance'
+import { getResetTokenFromHash } from '../access/passwordReset.js'
 
 function getErrorMessage(error, fallback) {
   return (
@@ -13,9 +14,10 @@ function getErrorMessage(error, fallback) {
 }
 
 export default function PasswordReset() {
-  const [step, setStep] = useState('request')
+  const [initialToken] = useState(() => getResetTokenFromHash(window.location.hash))
+  const [step, setStep] = useState(() => initialToken ? 'confirm' : 'request')
   const [email, setEmail] = useState('')
-  const [token, setToken] = useState('')
+  const [token, setToken] = useState(initialToken)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -23,6 +25,12 @@ export default function PasswordReset() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (initialToken) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+    }
+  }, [initialToken])
 
   async function handleRequest(event) {
     event.preventDefault()

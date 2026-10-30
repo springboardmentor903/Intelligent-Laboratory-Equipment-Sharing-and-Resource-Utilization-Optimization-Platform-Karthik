@@ -3,19 +3,33 @@ package com.labresource.platform.utilization.service;
 
 import com.labresource.platform.utilization.entity.Utilization;
 import com.labresource.platform.utilization.repository.UtilizationRepository;
+import com.labresource.platform.booking.repository.BookingRepository;
+import com.labresource.platform.equipment.repository.EquipmentRepository;
+import com.labresource.platform.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class UtilizationService {
 
     private final UtilizationRepository utilizationRepository;
+    private final EquipmentRepository equipmentRepository;
+    private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
 
-    public UtilizationService(UtilizationRepository utilizationRepository) {
+    public UtilizationService(
+            UtilizationRepository utilizationRepository,
+            EquipmentRepository equipmentRepository,
+            UserRepository userRepository,
+            BookingRepository bookingRepository) {
         this.utilizationRepository = utilizationRepository;
+        this.equipmentRepository = equipmentRepository;
+        this.userRepository = userRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     public List<Utilization> getAllRecords() {
@@ -49,6 +63,22 @@ public class UtilizationService {
             throw new IllegalArgumentException(
                     "Equipment, user and start time are required"
             );
+        }
+
+        if (!equipmentRepository.existsById(record.getEquipmentId())) {
+            throw new IllegalArgumentException("Equipment not found");
+        }
+        if (!userRepository.existsById(record.getUserId())) {
+            throw new IllegalArgumentException("User not found");
+        }
+        if (record.getBookingId() != null) {
+            var booking = bookingRepository.findById(record.getBookingId())
+                    .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+            if (!Objects.equals(booking.getEquipmentId(), record.getEquipmentId())
+                    || !Objects.equals(booking.getUserId(), record.getUserId())) {
+                throw new IllegalArgumentException(
+                        "Booking must belong to the specified equipment and user");
+            }
         }
 
         if (record.getEndTime() != null

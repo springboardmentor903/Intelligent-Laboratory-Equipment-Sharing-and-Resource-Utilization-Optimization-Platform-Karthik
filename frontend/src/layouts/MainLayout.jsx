@@ -1,6 +1,7 @@
-
 import { Outlet } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+
+const currentYear = new Date().getFullYear()
 
 export default function MainLayout() {
   return (
@@ -13,7 +14,7 @@ export default function MainLayout() {
 
       <footer className="app-footer">
         <p>
-          © {new Date().getFullYear()} Lab Resource Platform.
+          © {currentYear} Lab Resource Platform.
           <span> Smarter laboratory resource management.</span>
         </p>
       </footer>

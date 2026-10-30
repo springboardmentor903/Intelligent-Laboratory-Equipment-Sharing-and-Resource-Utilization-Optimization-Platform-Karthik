@@ -1107,6 +1107,23 @@
   }
 }
 
+/* ===== Authenticated Home Page ===== */
+.authenticated-home {
+  gap: 36px;
+}
+
+.auth-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--surface-secondary);
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+
 /* ===== 404 page ===== */
 .not-found-page {
   min-height: 560px;
@@ -1295,6 +1312,9 @@
   background: var(--surface);
   box-shadow: var(--shadow);
   transition: border-color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .equipment-card:hover {
@@ -1390,6 +1410,32 @@
   font-size: 11px;
   text-align: right;
   overflow-wrap: anywhere;
+}
+
+.equipment-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.equipment-card-actions .button,
+.equipment-card-actions .secondary-button,
+.equipment-card-actions button {
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .module-state {
@@ -1505,6 +1551,62 @@
   border-radius: 16px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.profile-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 0 0 22px;
+}
+
+.profile-details > div {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-secondary);
+  min-width: 0;
+}
+
+.profile-details dt {
+  margin-bottom: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.profile-details dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.booking-calendar .fc {
+  color: var(--text);
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--surface);
+  --fc-neutral-bg-color: var(--surface-secondary);
+  --fc-today-bg-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  --fc-button-bg-color: var(--primary);
+  --fc-button-border-color: var(--primary);
+  --fc-button-hover-bg-color: var(--primary-hover);
+  --fc-button-hover-border-color: var(--primary-hover);
+  --fc-button-active-bg-color: var(--primary-hover);
+  --fc-button-active-border-color: var(--primary-hover);
+}
+
+.calendar-event-details {
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--surface-secondary);
+  color: var(--text);
+}
+
+.calendar-event-details p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .module-section-title {
@@ -2627,47 +2729,6 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
-}
-
-/* ===== Authentication button styling fix ===== */
-.auth-submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 46px;
-  padding: 12px 18px;
-  border: 1px solid var(--primary);
-  border-radius: 10px;
-  background: var(--primary);
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.4;
-  text-align: center;
-  text-decoration: none;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    opacity 0.2s ease;
-}
-
-.auth-submit:hover:not(:disabled) {
-  border-color: var(--primary-hover);
-  background: var(--primary-hover);
-  color: #ffffff;
-}
-
-/* ===== Logout button theme fix ===== */
-.navbar-logout {
-  border-color: var(--border);
-  background: var(--surface);
-  color: var(--text);
-}
-
-.navbar-logout:hover {
-  border-color: var(--danger);
-  background: var(--surface-secondary);
-  color: var(--danger);
 }
 
 /* ===== Authentication button styling fix ===== */

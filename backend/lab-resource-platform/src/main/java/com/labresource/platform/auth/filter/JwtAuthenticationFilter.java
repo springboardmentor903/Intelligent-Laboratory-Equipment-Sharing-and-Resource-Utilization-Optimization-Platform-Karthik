@@ -74,7 +74,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     User user = userOptional.get();
 
                     List<GrantedAuthority> authorities =
-                            userRoleRepository.findByUserId(user.getId())
+                            Boolean.FALSE.equals(user.getMembershipApproved())
+                                    ? List.of()
+                                    : userRoleRepository.findByUserId(user.getId())
                                     .stream()
                                     .map(UserRole::getRoleId)
                                     .map(roleRepository::findById)

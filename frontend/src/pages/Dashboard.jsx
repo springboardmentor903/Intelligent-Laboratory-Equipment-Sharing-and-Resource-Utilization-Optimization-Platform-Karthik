@@ -1,8 +1,10 @@
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
+import { getDashboardAccessPlan } from '../access/roleAccess.js'
+import { BOOKING_REFRESH_EVENT } from '../access/bookingWorkflow.js'
 
 const dashboardItems = [
   {
@@ -50,6 +52,10 @@ function getErrorMessage(error) {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const accessPlan = useMemo(
+    () => getDashboardAccessPlan(user?.roles, user?.id),
+    [user?.id, user?.roles],
+  )
 
   const [backendStatus, setBackendStatus] = useState('Checking backend…')
   const [backendStatusType, setBackendStatusType] = useState('checking')
@@ -69,21 +75,34 @@ export default function Dashboard() {
     setStatsError('')
 
     try {
+      if (!accessPlan) {
+        setStatsError('Your session role is invalid. Sign in again to continue.')
+        setStats({ equipment: null, bookings: null, utilization: null, maintenance: null })
+        return
+      }
+
       const requests = [
-        api.get('/api/equipment'),
-        api.get('/api/bookings'),
-        api.get('/api/utilization/summary'),
-        api.get('/api/maintenance/summary'),
+        { name: 'Equipment', promise: api.get('/api/equipment') },
+        { name: 'Bookings', promise: accessPlan.bookingsUrl
+          ? api.get(accessPlan.bookingsUrl)
+          : Promise.reject(new Error('Your signed-in user ID is unavailable.')) },
+        { name: 'Utilization', promise: api.get('/api/utilization/summary') },
       ]
+      if (accessPlan.maintenanceSummaryUrl) {
+        requests.push({
+          name: 'Maintenance',
+          promise: api.get(accessPlan.maintenanceSummaryUrl),
+        })
+      }
 
-      const results = await Promise.allSettled(requests)
-
-      const [
-        equipmentResult,
-        bookingsResult,
-        utilizationResult,
-        maintenanceResult,
-      ] = results
+      const results = await Promise.allSettled(requests.map(({ promise }) => promise))
+      const resultsByName = Object.fromEntries(
+        requests.map(({ name }, index) => [name, results[index]]),
+      )
+      const equipmentResult = resultsByName.Equipment
+      const bookingsResult = resultsByName.Bookings
+      const utilizationResult = resultsByName.Utilization
+      const maintenanceResult = resultsByName.Maintenance
 
       setStats({
         equipment:
@@ -101,24 +120,16 @@ export default function Dashboard() {
             ? utilizationResult.value.data
             : null,
 
-        maintenance:
-          maintenanceResult.status === 'fulfilled'
-            ? maintenanceResult.value.data
-            : null,
+        maintenance: maintenanceResult?.status === 'fulfilled'
+          ? maintenanceResult.value.data
+          : null,
       })
-
-      const sectionNames = [
-        'Equipment',
-        'Bookings',
-        'Utilization',
-        'Maintenance',
-      ]
 
       const failedSections = results
         .map((result, index) => {
           if (result.status !== 'rejected') return null
 
-          return `${sectionNames[index]}: ${getErrorMessage(result.reason)}`
+          return `${requests[index].name}: ${getErrorMessage(result.reason)}`
         })
         .filter(Boolean)
 
@@ -132,10 +143,12 @@ export default function Dashboard() {
     } finally {
       setLoadingStats(false)
     }
-  }, [])
+  }, [accessPlan])
 
   useEffect(() => {
     let active = true
+    const handleBookingRefresh = () => loadDashboard()
+    window.addEventListener(BOOKING_REFRESH_EVENT, handleBookingRefresh)
 
     api
       .get('/api/health')
@@ -157,10 +170,12 @@ export default function Dashboard() {
         setBackendStatusType('error')
       })
 
-    loadDashboard()
+    // Defer the asynchronous stateful loader until after this effect commits.
+    void Promise.resolve().then(loadDashboard)
 
     return () => {
       active = false
+      window.removeEventListener(BOOKING_REFRESH_EVENT, handleBookingRefresh)
     }
   }, [loadDashboard])
 
@@ -173,9 +188,17 @@ export default function Dashboard() {
       path: '/equipment',
     },
     {
-      label: 'Bookings',
+      label: accessPlan?.bookingScope === 'platform'
+        ? 'Platform bookings'
+        : accessPlan?.bookingScope === 'institution'
+          ? 'Institution bookings'
+          : 'My bookings',
       value: stats.bookings,
-      detail: 'Booking records',
+      detail: accessPlan?.bookingScope === 'platform'
+        ? 'Platform-wide booking records'
+        : accessPlan?.bookingScope === 'institution'
+          ? 'Institution-scoped booking records'
+          : 'Your booking records',
       icon: '📅',
       path: '/bookings',
     },
@@ -189,7 +212,11 @@ export default function Dashboard() {
     {
       label: 'Maintenance',
       value: stats.maintenance?.totalRecords ?? null,
-      detail: 'Maintenance records',
+      detail: accessPlan?.maintenanceSummaryUrl
+        ? accessPlan.bookingScope === 'platform'
+          ? 'Platform-wide maintenance summary'
+          : 'Maintenance summary for your institution'
+        : 'Summary not available; view your reported requests in Maintenance',
       icon: '🛠️',
       path: '/maintenance',
     },

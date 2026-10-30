@@ -1,17 +1,18 @@
-
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { getNavigationItems } from '../access/roleAccess.js'
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme()
-  const { logout, isAuthenticated } = useAuth()
+  const { logout, isAuthenticated, user } = useAuth()
   const navigate = useNavigate()
 
   const isDark = theme === 'dark'
 
   const navLinkClass = ({ isActive }) =>
     `navbar-link${isActive ? ' navbar-link-active' : ''}`
+  const roleNavigation = getNavigationItems(user?.roles)
 
   function handleLogout() {
     logout()
@@ -41,24 +42,21 @@ export default function Navbar() {
               <NavLink to="/register" className={navLinkClass}>
                 Register
               </NavLink>
+              <NavLink to="/register-institution" className={navLinkClass}>
+                Register Institution
+              </NavLink>
             </>
           ) : (
             <>
-              <NavLink to="/dashboard" className={navLinkClass}>
-                Dashboard
-              </NavLink>
-              <NavLink to="/equipment" className={navLinkClass}>
-                Equipment
-              </NavLink>
-              <NavLink to="/bookings" className={navLinkClass}>
-                Bookings
-              </NavLink>
-              <NavLink to="/utilization" className={navLinkClass}>
-                Utilization
-              </NavLink>
-              <NavLink to="/maintenance" className={navLinkClass}>
-                Maintenance
-              </NavLink>
+              {roleNavigation.map((item) => (
+                <NavLink
+                  to={item.to}
+                  className={navLinkClass}
+                  key={item.to}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
             </>
           )}
         </div>

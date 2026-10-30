@@ -28,6 +28,23 @@ Thumbs.db
 *.pem
 *.key
 
-#postman and .postman folders
+# Database backups, dumps, and one-off SQL scripts
+database/backups/
+**/database/backups/
+**/database/
+*.dump
+*.dump.*
+*.bak
+*.sql
+!**/src/main/resources/db/migration/*.sql
+
+# Local archives and binary documents
+*.zip
+*.tar.gz
+*.xlsx
+*.pdf
+xl/
+
+# Postman and local testing collections
 .postman/
 postman/

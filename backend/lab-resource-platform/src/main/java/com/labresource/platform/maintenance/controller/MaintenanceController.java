@@ -3,31 +3,41 @@ package com.labresource.platform.maintenance.controller;
 
 import com.labresource.platform.maintenance.entity.Maintenance;
 import com.labresource.platform.maintenance.service.MaintenanceService;
+import com.labresource.platform.common.security.ResourceAccessPolicy;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/maintenance")
 public class MaintenanceController {
 
     private final MaintenanceService maintenanceService;
+    private final ResourceAccessPolicy resourceAccess;
 
-    public MaintenanceController(MaintenanceService maintenanceService) {
+    public MaintenanceController(MaintenanceService maintenanceService,
+                                 ResourceAccessPolicy resourceAccess) {
         this.maintenanceService = maintenanceService;
+        this.resourceAccess = resourceAccess;
     }
 
     @GetMapping
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<List<Maintenance>> getAllMaintenanceRecords() {
-        return ResponseEntity.ok(
-                maintenanceService.getAllMaintenanceRecords()
-        );
+        Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return ResponseEntity.ok(maintenanceService.getAllMaintenanceRecords().stream()
+                .filter(record -> resourceAccess.canAccessEquipment(record.getEquipmentId(), auth))
+                .collect(Collectors.toList()));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@resourceAccess.canAccessMaintenance(#id, authentication)")
     public ResponseEntity<?> getMaintenanceById(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(
@@ -40,49 +50,50 @@ public class MaintenanceController {
     }
 
     @GetMapping("/equipment/{equipmentId}")
+    @PreAuthorize("@resourceAccess.canAccessEquipment(#equipmentId, authentication) and @resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<List<Maintenance>> getByEquipment(
             @PathVariable Long equipmentId) {
-        return ResponseEntity.ok(
-                maintenanceService.getByEquipment(equipmentId)
-        );
+        Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return ResponseEntity.ok(maintenanceService.getByEquipment(equipmentId).stream()
+                .filter(record -> resourceAccess.canAccessMaintenance(record.getId(), auth))
+                .collect(Collectors.toList()));
     }
 
     @GetMapping("/reporter/{reportedBy}")
+    @PreAuthorize("@resourceAccess.ownsUser(#reportedBy, authentication) or (@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessUser(#reportedBy, authentication))")
     public ResponseEntity<List<Maintenance>> getByReporter(
             @PathVariable Long reportedBy) {
-        return ResponseEntity.ok(
-                maintenanceService.getByReporter(reportedBy)
-        );
+        return scoped(maintenanceService.getByReporter(reportedBy));
     }
 
     @GetMapping("/technician/{assignedTo}")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessUser(#assignedTo, authentication)")
     public ResponseEntity<List<Maintenance>> getByTechnician(
             @PathVariable Long assignedTo) {
-        return ResponseEntity.ok(
-                maintenanceService.getByTechnician(assignedTo)
-        );
+        return scoped(maintenanceService.getByTechnician(assignedTo));
     }
 
     @GetMapping("/status/{status}")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<List<Maintenance>> getByStatus(
             @PathVariable String status) {
-        return ResponseEntity.ok(
-                maintenanceService.getByStatus(status)
-        );
+        return scoped(maintenanceService.getByStatus(status));
     }
 
     @GetMapping("/priority/{priority}")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<List<Maintenance>> getByPriority(
             @PathVariable String priority) {
-        return ResponseEntity.ok(
-                maintenanceService.getByPriority(priority)
-        );
+        return scoped(maintenanceService.getByPriority(priority));
     }
 
     @PostMapping
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessEquipment(#maintenance.equipmentId, authentication)")
     public ResponseEntity<?> createMaintenance(
-            @RequestBody Maintenance maintenance) {
+            @RequestBody Maintenance maintenance,
+            Authentication authentication) {
         try {
+            maintenance.setReportedBy(resourceAccess.currentUserId(authentication));
             Maintenance created =
                     maintenanceService.createMaintenance(maintenance);
 
@@ -94,6 +105,7 @@ public class MaintenanceController {
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessMaintenance(#id, authentication)")
     public ResponseEntity<?> updateStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> request) {
@@ -110,6 +122,7 @@ public class MaintenanceController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessMaintenance(#id, authentication)")
     public ResponseEntity<?> deleteMaintenance(@PathVariable Long id) {
         try {
             maintenanceService.deleteMaintenance(id);
@@ -122,6 +135,7 @@ public class MaintenanceController {
 
 
     @PatchMapping("/{id}/assign")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessMaintenance(#id, authentication) and @resourceAccess.canAccessUser(#request.technicianId, authentication) and @resourceAccess.isTechnician(#request.technicianId)")
     public ResponseEntity<?> assignTechnician(
             @PathVariable Long id,
             @RequestBody Map<String, Long> request) {
@@ -139,40 +153,42 @@ public class MaintenanceController {
 
 
     @GetMapping("/summary")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<Map<String, Object>> getMaintenanceSummary() {
+        var all = getAllMaintenanceRecords().getBody();
         Map<String, Object> summary = new java.util.HashMap<>();
 
         summary.put(
                 "totalRecords",
-                maintenanceService.getTotalMaintenanceRecords()
+                all.size()
         );
         summary.put(
                 "reported",
-                maintenanceService.getCountByStatus("REPORTED")
+                all.stream().filter(record -> "REPORTED".equals(record.getStatus())).count()
         );
         summary.put(
                 "assigned",
-                maintenanceService.getCountByStatus("ASSIGNED")
+                all.stream().filter(record -> "ASSIGNED".equals(record.getStatus())).count()
         );
         summary.put(
                 "inProgress",
-                maintenanceService.getCountByStatus("IN_PROGRESS")
+                all.stream().filter(record -> "IN_PROGRESS".equals(record.getStatus())).count()
         );
         summary.put(
                 "completed",
-                maintenanceService.getCountByStatus("COMPLETED")
+                all.stream().filter(record -> "COMPLETED".equals(record.getStatus())).count()
         );
         summary.put(
                 "cancelled",
-                maintenanceService.getCountByStatus("CANCELLED")
+                all.stream().filter(record -> "CANCELLED".equals(record.getStatus())).count()
         );
         summary.put(
                 "highPriority",
-                maintenanceService.getCountByPriority("HIGH")
+                all.stream().filter(record -> "HIGH".equals(record.getPriority())).count()
         );
         summary.put(
                 "criticalPriority",
-                maintenanceService.getCountByPriority("CRITICAL")
+                all.stream().filter(record -> "CRITICAL".equals(record.getPriority())).count()
         );
 
         return ResponseEntity.ok(summary);
@@ -180,6 +196,7 @@ public class MaintenanceController {
 
 
     @PatchMapping("/{id}/resolution")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessMaintenance(#id, authentication)")
     public ResponseEntity<?> updateResolutionNotes(
             @PathVariable Long id,
             @RequestBody Map<String, String> request) {
@@ -197,28 +214,33 @@ public class MaintenanceController {
 
 
     @GetMapping("/equipment/{equipmentId}/history")
+    @PreAuthorize("@resourceAccess.canAccessEquipment(#equipmentId, authentication)")
     public ResponseEntity<List<Maintenance>> getMaintenanceHistory(
             @PathVariable Long equipmentId) {
 
-        return ResponseEntity.ok(
-                maintenanceService.getByEquipment(equipmentId)
-        );
+        return scoped(maintenanceService.getByEquipment(equipmentId));
     }
 
 
     @GetMapping("/date-range")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<?> getMaintenanceBetween(
             @RequestParam LocalDateTime start,
             @RequestParam LocalDateTime end) {
 
         try {
-            return ResponseEntity.ok(
-                    maintenanceService.getMaintenanceBetween(start, end)
-            );
+            return scoped(maintenanceService.getMaintenanceBetween(start, end));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", e.getMessage()));
         }
+    }
+
+    private ResponseEntity<List<Maintenance>> scoped(List<Maintenance> records) {
+        Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return ResponseEntity.ok(records.stream()
+                .filter(record -> resourceAccess.canAccessMaintenance(record.getId(), auth))
+                .collect(Collectors.toList()));
     }
 
 }

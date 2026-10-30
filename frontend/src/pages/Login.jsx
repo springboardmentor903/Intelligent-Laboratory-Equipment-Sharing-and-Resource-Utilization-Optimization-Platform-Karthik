@@ -1,7 +1,9 @@
-
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { googleAuthorizationUrl, getOAuthCallbackResult, oauthFailureMessage } from '../access/oauthLogin.js'
+import { getLoginDestination } from '../access/homeAccess.js'
+import { validateLoginForm, mapLoginError } from '../access/loginValidation.js'
 
 export default function Login() {
   const { login, isAuthenticated } = useAuth()
@@ -11,26 +13,38 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => {
+    const { error: oauthError } = getOAuthCallbackResult(window.location.hash)
+    return oauthError ? oauthFailureMessage(oauthError) : ''
+  })
   const [submitting, setSubmitting] = useState(false)
+  const googleOAuthEnabled = import.meta.env.VITE_GOOGLE_OAUTH_ENABLED === 'true'
 
-  const redirectTo = location.state?.from
+  useEffect(() => {
+    const { error: oauthError } = getOAuthCallbackResult(window.location.hash)
+    if (oauthError) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+    }
+  }, [])
 
-  const destination =
-    redirectTo?.pathname &&
-    redirectTo.pathname !== '/login' &&
-    redirectTo.pathname !== '/register' &&
-    redirectTo.pathname !== '/password-reset'
-      ? `${redirectTo.pathname}${redirectTo.search || ''}${redirectTo.hash || ''}`
-      : '/dashboard'
+  const destination = getLoginDestination(location.state?.from)
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/" replace />
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
+    if (submitting) return
+
     setError('')
+
+    const validationError = validateLoginForm({ email, password })
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -41,11 +55,7 @@ export default function Login() {
 
       navigate(destination, { replace: true })
     } catch (requestError) {
-      setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          'Login failed. Please check your credentials and try again.',
-      )
+      setError(mapLoginError(requestError))
     } finally {
       setSubmitting(false)
     }
@@ -73,7 +83,7 @@ export default function Login() {
           </div>
         )}
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <label htmlFor="login-email">Email address</label>
 
           <input
@@ -124,6 +134,12 @@ export default function Login() {
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+
+        {googleOAuthEnabled && (
+          <a className="secondary-button google-login-button" href={googleAuthorizationUrl(import.meta.env.VITE_API_BASE_URL)}>
+            Continue with Google
+          </a>
+        )}
 
         <p className="auth-switch">
           Don't have an account?{' '}

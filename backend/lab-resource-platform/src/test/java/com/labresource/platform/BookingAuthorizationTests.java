@@ -3,13 +3,16 @@ package com.labresource.platform;
 
 import com.labresource.platform.booking.controller.BookingController;
 import com.labresource.platform.booking.entity.Booking;
+import com.labresource.platform.booking.dto.BookingCreateRequest;
 import com.labresource.platform.booking.service.BookingService;
+import com.labresource.platform.common.security.ResourceAccessPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
@@ -28,6 +31,9 @@ class BookingAuthorizationTests {
     @Autowired
     private BookingService bookingService;
 
+    @Autowired
+    private ResourceAccessPolicy resourceAccess;
+
     @BeforeEach
     void resetMocks() {
         reset(bookingService);
@@ -39,15 +45,17 @@ class BookingAuthorizationTests {
             roles = "RESEARCHER_STUDENT"
     )
     void studentCanCreateBooking() {
-        Booking request = new Booking();
+        BookingCreateRequest request = new BookingCreateRequest();
+        request.setEquipmentId(8L);
         Booking created = new Booking();
         created.setId(10L);
         created.setUserId(1L);
         created.setStatus("PENDING");
 
         when(bookingService.createBooking(
-                request, "student@example.com"
+                org.mockito.ArgumentMatchers.any(Booking.class), eq("student@example.com")
         )).thenReturn(created);
+        when(resourceAccess.canAccessEquipment(eq(8L), any())).thenReturn(true);
 
         var response = bookingController.createBooking(
                 request,
@@ -57,7 +65,7 @@ class BookingAuthorizationTests {
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         verify(bookingService).createBooking(
-                request, "student@example.com"
+                argThat(booking -> booking.getEquipmentId().equals(8L)), eq("student@example.com")
         );
     }
 
@@ -86,9 +94,9 @@ class BookingAuthorizationTests {
         booking.setUserId(1L);
         booking.setStatus("CANCELLED");
 
-        when(bookingService.isBookingOwner(
-                42L, "student@example.com"
-        )).thenReturn(true);
+        when(resourceAccess.ownsBooking(42L,
+                org.springframework.security.core.context.SecurityContextHolder
+                        .getContext().getAuthentication())).thenReturn(true);
 
         when(bookingService.cancelBooking(42L))
                 .thenReturn(booking);
@@ -105,9 +113,9 @@ class BookingAuthorizationTests {
             roles = "RESEARCHER_STUDENT"
     )
     void studentCannotCancelAnotherUsersBooking() {
-        when(bookingService.isBookingOwner(
-                42L, "student@example.com"
-        )).thenReturn(false);
+        when(resourceAccess.ownsBooking(42L,
+                org.springframework.security.core.context.SecurityContextHolder
+                        .getContext().getAuthentication())).thenReturn(false);
 
         assertThrows(
                 AccessDeniedException.class,
@@ -115,6 +123,25 @@ class BookingAuthorizationTests {
         );
 
         verify(bookingService, never()).cancelBooking(42L);
+    }
+
+    @Test
+    @WithMockUser(username = "manager@example.com", roles = "LAB_MANAGER")
+    void managerCanReadInstitutionScopedBookingList() {
+        when(bookingService.getAllBookings()).thenReturn(java.util.List.of());
+
+        var response = bookingController.getAllBookings();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(bookingService).getAllBookings();
+    }
+
+    @Test
+    void unauthenticatedCallerCannotCreateBooking() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        assertThrows(AuthenticationCredentialsNotFoundException.class,
+                () -> bookingController.createBooking(new BookingCreateRequest(), null));
+        verifyNoInteractions(bookingService);
     }
 
     @Configuration
@@ -127,10 +154,16 @@ class BookingAuthorizationTests {
         }
 
         @Bean
+        ResourceAccessPolicy resourceAccess() {
+            return mock(ResourceAccessPolicy.class);
+        }
+
+        @Bean
         BookingController bookingController(
-                BookingService bookingService
+                BookingService bookingService,
+                ResourceAccessPolicy resourceAccess
         ) {
-            return new BookingController(bookingService);
+            return new BookingController(bookingService, resourceAccess);
         }
     }
 }

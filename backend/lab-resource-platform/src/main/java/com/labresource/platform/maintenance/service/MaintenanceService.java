@@ -3,6 +3,8 @@ package com.labresource.platform.maintenance.service;
 
 import com.labresource.platform.maintenance.entity.Maintenance;
 import com.labresource.platform.maintenance.repository.MaintenanceRepository;
+import com.labresource.platform.equipment.repository.EquipmentRepository;
+import com.labresource.platform.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -12,9 +14,16 @@ import java.util.List;
 public class MaintenanceService {
 
     private final MaintenanceRepository maintenanceRepository;
+    private final EquipmentRepository equipmentRepository;
+    private final UserRepository userRepository;
 
-    public MaintenanceService(MaintenanceRepository maintenanceRepository) {
+    public MaintenanceService(
+            MaintenanceRepository maintenanceRepository,
+            EquipmentRepository equipmentRepository,
+            UserRepository userRepository) {
         this.maintenanceRepository = maintenanceRepository;
+        this.equipmentRepository = equipmentRepository;
+        this.userRepository = userRepository;
     }
 
     public List<Maintenance> getAllMaintenanceRecords() {
@@ -64,6 +73,13 @@ public class MaintenanceService {
             maintenance.setPriority("MEDIUM");
         }
 
+        if (!equipmentRepository.existsById(maintenance.getEquipmentId())) {
+            throw new IllegalArgumentException("Equipment not found");
+        }
+        if (!userRepository.existsById(maintenance.getReportedBy())) {
+            throw new IllegalArgumentException("Reporting user not found");
+        }
+
         String priority = maintenance.getPriority().trim().toUpperCase();
 
         if (!List.of("LOW", "MEDIUM", "HIGH", "CRITICAL").contains(priority)) {
@@ -101,6 +117,12 @@ public class MaintenanceService {
             throw new IllegalArgumentException("Invalid maintenance status");
         }
 
+        if (!isAllowedTransition(maintenance, normalizedStatus)) {
+            throw new IllegalArgumentException(
+                    "Maintenance status cannot transition from "
+                            + maintenance.getStatus() + " to " + normalizedStatus);
+        }
+
 
         if ("COMPLETED".equals(normalizedStatus)) {
             LocalDateTime completedAt = LocalDateTime.now();
@@ -127,6 +149,25 @@ public class MaintenanceService {
         );
     }
 
+    private boolean isAllowedTransition(Maintenance maintenance, String target) {
+        String current = maintenance.getStatus() == null
+                ? "REPORTED" : maintenance.getStatus().trim().toUpperCase();
+        if (current.equals(target)) return true;
+        return switch (current) {
+            case "REPORTED" -> "CANCELLED".equals(target)
+                    || ("ASSIGNED".equals(target)
+                    && maintenance.getAssignedTo() != null);
+            case "ASSIGNED" -> "CANCELLED".equals(target)
+                    || ("IN_PROGRESS".equals(target)
+                    && maintenance.getAssignedTo() != null);
+            case "IN_PROGRESS" -> "CANCELLED".equals(target)
+                    || ("COMPLETED".equals(target)
+                    && maintenance.getStartedAt() != null);
+            case "COMPLETED", "CANCELLED" -> false;
+            default -> false;
+        };
+    }
+
     private Maintenance updateMaintenanceStatus(
             Maintenance maintenance, String status) {
         maintenance.setStatus(status);
@@ -142,8 +183,17 @@ public class MaintenanceService {
     public Maintenance assignTechnician(Long id, Long technicianId) {
         Maintenance maintenance = getMaintenanceById(id);
 
+        if (!List.of("REPORTED", "ASSIGNED").contains(maintenance.getStatus())) {
+            throw new IllegalArgumentException(
+                    "A technician can only be assigned to reported or assigned work orders");
+        }
+
         if (technicianId == null) {
             throw new IllegalArgumentException("Technician ID is required");
+        }
+
+        if (!userRepository.existsById(technicianId)) {
+            throw new IllegalArgumentException("Assigned user not found");
         }
 
         maintenance.setAssignedTo(technicianId);
@@ -176,6 +226,11 @@ public class MaintenanceService {
             throw new IllegalArgumentException(
                     "Resolution notes are required"
             );
+        }
+
+        if (resolutionNotes.trim().length() > 1000) {
+            throw new IllegalArgumentException(
+                    "Resolution notes must be 1000 characters or fewer");
         }
 
         maintenance.setResolutionNotes(resolutionNotes.trim());

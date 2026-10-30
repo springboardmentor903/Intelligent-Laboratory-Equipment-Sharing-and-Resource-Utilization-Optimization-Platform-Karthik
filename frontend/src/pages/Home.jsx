@@ -1,7 +1,10 @@
-
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import api from '../api/axiosInstance'
+import { getRoleGuidance, getRoleHomeItems, ROLE_LABELS } from '../access/homeAccess.js'
 
-const features = [
+const publicFeatures = [
   {
     icon: '🔬',
     title: 'Equipment Management',
@@ -29,6 +32,123 @@ const features = [
 ]
 
 export default function Home() {
+  const { isAuthenticated, loading, user } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="route-loading" role="status">
+        Checking your session…
+      </div>
+    )
+  }
+
+  if (isAuthenticated && user) {
+    return <AuthenticatedHome user={user} />
+  }
+
+  return <PublicHome />
+}
+
+function AuthenticatedHome({ user }) {
+  const roles = Array.isArray(user?.roles) ? user.roles : []
+  const roleLabels = roles.map((r) => ROLE_LABELS[r] || r)
+  const homeItems = getRoleHomeItems(roles)
+  const guidance = getRoleGuidance(roles)
+  const isSystemAdmin = roles.includes('SYSTEM_ADMIN')
+  const displayName = user?.fullName || (user?.email ? user.email.split('@')[0] : 'User')
+
+  const [institutionName, setInstitutionName] = useState('')
+
+  useEffect(() => {
+    let active = true
+    if (!isSystemAdmin && user?.institutionId) {
+      api.get(`/api/institutions/${user.institutionId}`)
+        .then(({ data }) => {
+          if (active && data?.name) {
+            setInstitutionName(data.name)
+          }
+        })
+        .catch(() => {})
+    }
+    return () => { active = false }
+  }, [isSystemAdmin, user?.institutionId])
+
+  const subtitle = isSystemAdmin
+    ? 'Platform-wide access · Your session is authenticated and active.'
+    : institutionName
+      ? `Connected to ${institutionName} · Your session is authenticated and active.`
+      : user?.institutionId
+        ? `Connected to Institution #${user.institutionId} · Your session is authenticated and active.`
+        : 'Your session is authenticated and active.'
+
+  return (
+    <div className="home-page authenticated-home">
+      <section className="dashboard-welcome">
+        <div>
+          <span className="eyebrow">LABORATORY WORKSPACE</span>
+          <h1>Welcome back, {displayName}</h1>
+          <p>{subtitle}</p>
+          {roleLabels.length > 0 && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+              {roleLabels.map((label) => (
+                <span key={label} className="auth-role-badge">
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="hero-actions" style={{ margin: 0, display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <Link to="/dashboard" className="button button-primary">
+            Open Dashboard <span aria-hidden="true">→</span>
+          </Link>
+          <Link to="/profile" className="button button-secondary">
+            View Profile
+          </Link>
+        </div>
+      </section>
+
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="eyebrow">WORKSPACE MODULES</span>
+            <h2>Quick access</h2>
+          </div>
+        </div>
+
+        <div className="dashboard-module-grid">
+          {homeItems.map((item) => (
+            <article className="dashboard-module-card" key={item.title}>
+              <div className="module-icon" aria-hidden="true">
+                {item.icon}
+              </div>
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
+              <Link to={item.path} className="module-link">
+                {item.action} <span aria-hidden="true">→</span>
+              </Link>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {guidance && (
+        <section className="dashboard-notice">
+          <span className="notice-icon" aria-hidden="true">
+            🛡️
+          </span>
+          <div>
+            <strong>Role & Permissions Overview</strong>
+            <p>{guidance}</p>
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
+function PublicHome() {
   return (
     <div className="home-page">
       <section className="hero-section">
@@ -103,7 +223,7 @@ export default function Home() {
         </div>
 
         <div className="feature-grid">
-          {features.map((feature) => (
+          {publicFeatures.map((feature) => (
             <article className="feature-card" key={feature.title}>
               <div className="feature-icon" aria-hidden="true">
                 {feature.icon}

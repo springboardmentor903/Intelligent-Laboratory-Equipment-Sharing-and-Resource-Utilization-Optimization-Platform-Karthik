@@ -2,6 +2,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
+import {
+  canRequestBooking,
+  getBookingRecordsUrl,
+} from '../access/roleAccess.js'
+import {
+  BOOKING_REFRESH_EVENT,
+  getBookingActionError,
+  getBookingActions,
+  performBookingAction,
+  formatBookingStatus,
+  getAvailabilityRequest,
+} from '../access/bookingWorkflow.js'
+import { buildBookingPayload } from '../access/bookingDateTime.js'
 
 const initialForm = {
   equipmentId: '',
@@ -27,6 +40,9 @@ function getStatusClass(status) {
 }
 
 function getErrorMessage(error, fallback) {
+  if (error?.response?.status === 403) {
+    return 'Access denied. Your role or account scope cannot view these booking records.'
+  }
   return (
     error.response?.data?.message ||
     error.response?.data?.error ||
@@ -44,18 +60,41 @@ export default function Bookings() {
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [actionInProgress, setActionInProgress] = useState(null)
+  const [actionError, setActionError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [selectedAuditBookingId, setSelectedAuditBookingId] = useState(null)
+  const [auditLogs, setAuditLogs] = useState([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditError, setAuditError] = useState('')
+
+  async function viewAudit(bookingId) {
+    setSelectedAuditBookingId(bookingId)
+    setAuditLoading(true)
+    setAuditError('')
+    try {
+      const response = await api.get(`/api/bookings/${bookingId}/audit`)
+      setAuditLogs(Array.isArray(response.data) ? response.data : [])
+    } catch (err) {
+      setAuditError(err.response?.data?.message || 'Failed to load audit history.')
+    } finally {
+      setAuditLoading(false)
+    }
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setError('')
 
     try {
+      const bookingsUrl = getBookingRecordsUrl(user?.roles, user?.id)
       const results = await Promise.allSettled([
-        api.get('/api/bookings'),
+        bookingsUrl
+          ? api.get(bookingsUrl)
+          : Promise.reject(new Error('Booking history is unavailable for this account.')),
         api.get('/api/equipment'),
       ])
 
@@ -69,6 +108,9 @@ export default function Bookings() {
             : [],
         )
       } else {
+        if (bookingResult.reason?.response?.status === 403) {
+          setBookings([])
+        }
         errors.push(
           `Bookings: ${getErrorMessage(
             bookingResult.reason,
@@ -102,10 +144,12 @@ export default function Bookings() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
-    loadData()
+    // Start the asynchronous fetch after React has committed this render.
+    // The callback itself owns the loading/error state transitions.
+    void Promise.resolve().then(loadData)
   }, [loadData])
 
   function handleChange(event) {
@@ -149,22 +193,22 @@ export default function Bookings() {
       return
     }
 
-    const start = new Date(form.startTime)
-    const end = new Date(form.endTime)
-
-    if (Number.isNaN(start.getTime()) || start <= new Date()) {
-      setError('The booking start time must be in the future.')
+    let bookingPayload
+    try {
+      bookingPayload = buildBookingPayload(form)
+    } catch {
+      setError('Enter valid booking start and end times.')
       return
     }
 
-    if (Number.isNaN(end.getTime()) || end <= start) {
+    if (bookingPayload.endTime <= bookingPayload.startTime) {
       setError('The end time must be after the start time.')
       return
     }
 
     if (
       selectedEquipment.status &&
-      !['AVAILABLE'].includes(
+      !['AVAILABLE', 'BOOKED'].includes(
         String(selectedEquipment.status).toUpperCase(),
       )
     ) {
@@ -177,13 +221,24 @@ export default function Bookings() {
     setSubmitting(true)
 
     try {
-      await api.post('/api/bookings', {
-        equipmentId: Number(form.equipmentId),
-        userId: Number(user.id),
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        purpose: form.purpose.trim(),
+      const availabilityRequest = getAvailabilityRequest(
+        form.equipmentId,
+        bookingPayload.startTime,
+        bookingPayload.endTime,
+      )
+      const availability = await api.get(availabilityRequest.url, {
+        params: availabilityRequest.params,
       })
+      if (!availability.data?.available) {
+        const remaining = Number(availability.data?.remainingUnits || 0)
+        setError(remaining > 0
+          ? 'The equipment is not accepting reservations for this time range.'
+          : 'No units are available during this time range. Try another time.')
+        return
+      }
+      // LocalDateTime has no timezone; preserve the entered lab wall-clock values.
+      // The backend validates whether the start time is in its future.
+      await api.post('/api/bookings', bookingPayload)
 
       setForm(initialForm)
       setSuccess('Booking request submitted successfully.')
@@ -198,6 +253,36 @@ export default function Bookings() {
       )
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleBookingAction(booking, action) {
+    if (actionInProgress) return
+    setActionError('')
+    setSuccess('')
+    setActionInProgress(`${booking.id}:${action}`)
+
+    try {
+      await performBookingAction({
+        api,
+        action,
+        bookingId: booking.id,
+        refresh: loadData,
+        notifyDashboard: () => window.dispatchEvent(new Event(BOOKING_REFRESH_EVENT)),
+      })
+      const resultText = {
+        cancel: 'Booking cancelled.',
+        approve: 'Booking approved.',
+        reject: 'Booking rejected.',
+        start: 'Booking marked in use.',
+        complete: 'Booking completed.',
+        'no-show': 'Booking marked as no show.',
+      }[action]
+      setSuccess(resultText)
+    } catch (err) {
+      setActionError(getBookingActionError(err, 'Unable to update this booking.'))
+    } finally {
+      setActionInProgress(null)
     }
   }
 
@@ -247,6 +332,7 @@ export default function Bookings() {
         </div>
       </section>
 
+
       {error && (
         <div className="module-alert" role="alert">
           <span>{error}</span>
@@ -267,7 +353,7 @@ export default function Bookings() {
         </div>
       )}
 
-      <section className="booking-form-card">
+      {canRequestBooking(user?.roles) ? <section className="booking-form-card">
         <div className="module-section-title">
           <div className="module-section-icon" aria-hidden="true">
             📅
@@ -307,7 +393,7 @@ export default function Bookings() {
                   ).toUpperCase()
 
                   return (
-                    <option key={item.id} value={item.id}>
+                      <option key={item.id} value={item.id}>
                       {item.name || `Equipment #${item.id}`}
                       {' — '}
                       {status.replaceAll('_', ' ')}
@@ -325,9 +411,6 @@ export default function Bookings() {
                   name="startTime"
                   type="datetime-local"
                   value={form.startTime}
-                  min={new Date(Date.now() + 60000)
-                    .toISOString()
-                    .slice(0, 16)}
                   onChange={handleChange}
                   required
                   disabled={submitting}
@@ -355,7 +438,7 @@ export default function Bookings() {
                 id="booking-purpose"
                 name="purpose"
                 rows={3}
-                maxLength={1000}
+                maxLength={500}
                 placeholder="Explain why you need this equipment"
                 value={form.purpose}
                 onChange={handleChange}
@@ -375,10 +458,17 @@ export default function Bookings() {
         )}
 
         <p className="booking-form-note">
-          Requests are submitted with PENDING status, subject to backend
-          validation and approval.
+          Availability is checked before submission and rechecked by the backend under a per-equipment lock. Each booking request reserves one unit. New requests use PENDING status and require approval.
         </p>
-      </section>
+      </section> : (
+        <div className="auth-success" role="status">
+          Booking requests can be submitted by Researchers/Students. You can review the bookings available to your role below.
+        </div>
+      )}
+
+      {actionError && (
+        <div className="module-alert" role="alert">{actionError}</div>
+      )}
 
       <section className="booking-list-section">
         <div className="dashboard-section-heading">
@@ -390,7 +480,7 @@ export default function Bookings() {
 
         <div className="module-toolbar">
           <div className="module-search">
-            <span aria-hidden="true">⌕</span>
+            <span aria-hidden="true">🔍</span>
             <input
               type="search"
               aria-label="Search bookings"
@@ -453,11 +543,15 @@ export default function Bookings() {
                     <th>Schedule</th>
                     <th>Purpose</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {filteredBookings.map((booking) => (
+                  {filteredBookings.map((booking) => {
+                    const actions = getBookingActions(booking, user?.roles, user?.id)
+                    const pendingAction = actionInProgress?.startsWith(`${booking.id}:`)
+                    return (
                     <tr key={booking.id}>
                       <td>#{booking.id}</td>
                       <td>#{booking.equipmentId ?? '—'}</td>
@@ -470,20 +564,99 @@ export default function Bookings() {
                       <td>{booking.purpose || '—'}</td>
                       <td>
                         <span className={getStatusClass(booking.status)}>
-                          {String(booking.status || 'UNKNOWN').replaceAll(
-                            '_',
-                            ' ',
-                          )}
+                          {formatBookingStatus(booking.status)}
                         </span>
                       </td>
+                      <td>
+                        {actions.includes('cancel') && (
+                          <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'cancel')}>
+                            {pendingAction && actionInProgress.endsWith(':cancel') ? 'Cancelling…' : 'Cancel'}
+                          </button>
+                        )}
+                        {actions.includes('approve') && (
+                          <>
+                            <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'approve')}>
+                              {pendingAction && actionInProgress.endsWith(':approve') ? 'Approving…' : 'Approve'}
+                            </button>{' '}
+                            <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'reject')}>
+                              {pendingAction && actionInProgress.endsWith(':reject') ? 'Rejecting…' : 'Reject'}
+                            </button>
+                          </>
+                        )}
+                        {actions.includes('start') && (
+                          <>
+                            <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'start')}>
+                              {pendingAction && actionInProgress.endsWith(':start') ? 'Starting…' : 'Mark in use'}
+                            </button>{' '}
+                            <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'no-show')}>
+                              {pendingAction && actionInProgress.endsWith(':no-show') ? 'Updating…' : 'Mark no show'}
+                            </button>
+                          </>
+                        )}
+                        {actions.includes('complete') && (
+                          <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'complete')}>
+                            {pendingAction && actionInProgress.endsWith(':complete') ? 'Completing…' : 'Complete'}
+                          </button>
+                        )}
+                        {!actions.length && <span aria-label="No available actions">—</span>}
+                        {' '}
+                        <button type="button" className="secondary-button" onClick={() => viewAudit(booking.id)}>
+                          Audit
+                        </button>
+                      </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           </>
         )}
       </section>
+
+      {selectedAuditBookingId != null && (
+        <section className="booking-form-card" style={{ marginTop: '1.5rem' }}>
+          <div className="module-section-title">
+            <div>
+              <h2>Audit Trail for Booking #{selectedAuditBookingId}</h2>
+              <p>Chronological history of lifecycle transitions and events.</p>
+            </div>
+            <button type="button" className="secondary-button" onClick={() => setSelectedAuditBookingId(null)}>
+              Close audit
+            </button>
+          </div>
+          {auditLoading ? (
+            <p role="status">Loading audit history…</p>
+          ) : auditError ? (
+            <div className="module-alert" role="alert">{auditError}</div>
+          ) : auditLogs.length === 0 ? (
+            <p>No audit events recorded for this booking.</p>
+          ) : (
+            <div className="booking-table-wrapper">
+              <table className="booking-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event</th>
+                    <th>Transition</th>
+                    <th>Actor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td>{formatDate(log.occurredAt)}</td>
+                      <td><strong>{log.eventType}</strong></td>
+                      <td>{log.previousStatus ? `${log.previousStatus} → ` : ''}{log.newStatus || '—'}</td>
+                      <td>{log.actorEmail || 'System'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }

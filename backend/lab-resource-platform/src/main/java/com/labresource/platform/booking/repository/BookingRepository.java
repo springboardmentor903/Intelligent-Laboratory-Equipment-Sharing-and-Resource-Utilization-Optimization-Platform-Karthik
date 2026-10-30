@@ -24,4 +24,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             java.time.LocalDateTime endTime,
             java.time.LocalDateTime startTime
     );
+
+    long countByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
+            Long equipmentId,
+            List<String> statuses,
+            java.time.LocalDateTime endTime,
+            java.time.LocalDateTime startTime
+    );
+
+    List<Booking> findByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
+            Long equipmentId,
+            List<String> statuses,
+            java.time.LocalDateTime endTime,
+            java.time.LocalDateTime startTime
+    );
 }
