@@ -4,6 +4,7 @@ import com.labresource.platform.booking.entity.Booking;
 import com.labresource.platform.booking.entity.BookingAuditLog;
 import com.labresource.platform.booking.dto.BookingCreateRequest;
 import com.labresource.platform.booking.service.BookingService;
+import com.labresource.platform.booking.service.BookingActionException;
 import com.labresource.platform.common.security.ResourceAccessPolicy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +49,28 @@ public class BookingController {
             return ResponseEntity.ok(bookingService.getBookingById(id));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", exception.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/check-in")
+    @PreAuthorize("@resourceAccess.isApprovedUser(authentication)")
+    public ResponseEntity<?> checkIn(@PathVariable Long id, Authentication authentication) {
+        try {
+            return ResponseEntity.ok(bookingService.checkIn(id, authentication.getName()));
+        } catch (BookingActionException exception) {
+            return ResponseEntity.status(exception.getStatus())
+                    .body(Map.of("message", exception.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/check-out")
+    @PreAuthorize("@resourceAccess.isApprovedUser(authentication)")
+    public ResponseEntity<?> checkOut(@PathVariable Long id, Authentication authentication) {
+        try {
+            return ResponseEntity.ok(bookingService.checkOut(id, authentication.getName()));
+        } catch (BookingActionException exception) {
+            return ResponseEntity.status(exception.getStatus())
                     .body(Map.of("message", exception.getMessage()));
         }
     }
@@ -166,6 +189,37 @@ public class BookingController {
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", exception.getMessage()));
+        }
+    }
+    @GetMapping("/pending")
+    @PreAuthorize("hasAnyRole('LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    public ResponseEntity<List<Booking>> getPendingBookings(Authentication authentication) {
+        return ResponseEntity.ok(bookingService.getAllBookings().stream()
+                .filter(b -> ("PENDING".equalsIgnoreCase(b.getStatus()) || "PENDING_APPROVAL".equalsIgnoreCase(b.getStatus())))
+                .filter(b -> resourceAccess.canAccessEquipment(b.getEquipmentId(), authentication))
+                .collect(Collectors.toList()));
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessBooking(#id, authentication)")
+    public ResponseEntity<?> approveBooking(@PathVariable Long id, Authentication authentication) {
+        try {
+            return ResponseEntity.ok(bookingService.updateBookingStatus(id, "CONFIRMED", authentication.getName()));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessBooking(#id, authentication)")
+    public ResponseEntity<?> rejectBooking(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body, Authentication authentication) {
+        try {
+            if (body == null || body.get("reason") == null || body.get("reason").trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Rejection reason is required."));
+            }
+            return ResponseEntity.ok(bookingService.updateBookingStatus(id, "REJECTED", authentication.getName(), body.get("reason").trim()));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }
     }
 }

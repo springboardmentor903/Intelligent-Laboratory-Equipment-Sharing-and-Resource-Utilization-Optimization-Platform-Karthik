@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   buildEquipmentSearchParams,
   EQUIPMENT_STATUSES,
+  getEditableEquipmentStatuses,
   getEquipmentPermissions,
   validateCalibrationForm,
   validateCertificationForm,
@@ -20,17 +21,29 @@ test('equipment search builds only supported, nonempty backend parameters', () =
 test('equipment mutation and record creation visibility matches backend roles', () => {
   assert.deepEqual(getEquipmentPermissions(['RESEARCHER_STUDENT']), {
     canCreate: false, canEdit: false, canDelete: false,
-    canCreateRecords: false, canFilterInstitution: false,
+    canCreateRecords: false, canChangeStatus: false, canFilterInstitution: false,
   })
-  assert.equal(getEquipmentPermissions(['LAB_TECHNICIAN']).canCreate, true)
-  assert.equal(getEquipmentPermissions(['LAB_TECHNICIAN']).canEdit, true)
+  assert.equal(getEquipmentPermissions(['LAB_TECHNICIAN']).canCreate, false)
+  assert.equal(getEquipmentPermissions(['LAB_TECHNICIAN']).canEdit, false)
   assert.equal(getEquipmentPermissions(['LAB_TECHNICIAN']).canDelete, false)
   assert.equal(getEquipmentPermissions(['LAB_TECHNICIAN']).canCreateRecords, true)
+  assert.equal(getEquipmentPermissions(['LAB_TECHNICIAN']).canChangeStatus, false)
+  assert.equal(getEquipmentPermissions(['LAB_MANAGER']).canCreate, false)
+  assert.equal(getEquipmentPermissions(['LAB_MANAGER']).canEdit, true)
   assert.equal(getEquipmentPermissions(['LAB_MANAGER']).canDelete, true)
+  assert.equal(getEquipmentPermissions(['LAB_MANAGER']).canChangeStatus, true)
+  assert.equal(getEquipmentPermissions(['INSTITUTION_ADMIN']).canCreate, true)
   assert.equal(getEquipmentPermissions(['INSTITUTION_ADMIN']).canCreateRecords, true)
   assert.equal(getEquipmentPermissions(['SYSTEM_ADMIN']).canFilterInstitution, true)
   assert.equal(getEquipmentPermissions(['DEPARTMENT_HEAD']).canEdit, false)
   assert.equal(getEquipmentPermissions(undefined).canCreate, false)
+})
+
+test('manual equipment status choices keep BOOKED system-managed and RETIRED final', () => {
+  assert.deepEqual(getEditableEquipmentStatuses('AVAILABLE', true, true), ['AVAILABLE'])
+  assert.deepEqual(getEditableEquipmentStatuses('BOOKED', true), ['BOOKED', 'RETIRED'])
+  assert.deepEqual(getEditableEquipmentStatuses('RETIRED', true), ['RETIRED'])
+  assert.deepEqual(getEditableEquipmentStatuses('AVAILABLE', false), ['AVAILABLE'])
 })
 
 test('equipment status values match the mentor inventory vocabulary', () => {
@@ -45,13 +58,13 @@ test('equipment status values match the mentor inventory vocabulary', () => {
 
 test('equipment form validates service limits and produces the entity request fields', () => {
   const { errors, body } = validateEquipmentForm({
-    name: '  Microscope ', category: ' optics ', description: '', institutionId: '4',
+    name: '  Microscope ', assetTag: ' MIC-04 ', category: ' optics ', description: '', institutionId: '4',
     labLocation: ' Room A ', quantity: '2', status: '', tags: ' Imaging, optics ',
     specificationsText: '{"magnification": 40}',
   })
   assert.deepEqual(errors, [])
   assert.deepEqual(body, {
-    name: 'Microscope', category: 'optics', description: null, institutionId: 4,
+    name: 'Microscope', assetTag: 'MIC-04', category: 'optics', description: null, institutionId: 4,
     labLocation: 'Room A', quantity: 2, status: null,
     specifications: { magnification: 40 }, tags: ['Imaging', 'optics'],
   })

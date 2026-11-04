@@ -177,20 +177,20 @@ All source primary keys are generated identity values. No source-level enum/chec
 
 ## Entity source files
 
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/institution/entity/Institution.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/institution/entity/Department.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/user/entity/User.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/user/entity/Role.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/user/entity/UserRole.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/equipment/entity/Equipment.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/booking/entity/Booking.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/booking/entity/BookingAuditLog.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/utilization/entity/Utilization.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/maintenance/entity/Maintenance.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/calibration/entity/CalibrationRecord.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/certification/entity/CertificationRecord.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/auth/entity/PasswordResetToken.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/maintenance/entity/Maintenance.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/calibration/entity/CalibrationRecord.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/certification/entity/CertificationRecord.java`
-- `backend/lab-resource-platform/src/main/java/com/labresource/platform/auth/entity/PasswordResetToken.java`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`
+- `../backend/lab-resource-platform`

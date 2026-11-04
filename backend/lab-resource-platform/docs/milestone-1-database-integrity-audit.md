@@ -15,7 +15,7 @@ The supplied database inspection found all 12 expected tables and 11 identity-by
 
 The inspected column query reportedly returned expected columns and types, including `equipment.specifications` as `jsonb`. The full column-by-column output was not included with the supplied summary, so this document does not reproduce an exhaustive PostgreSQL type/nullability/default inventory. No live database constraints beyond the reported keys and indexes should be inferred.
 
-`spring.jpa.hibernate.ddl-auto=update` remains configured at `backend/lab-resource-platform/src/main/resources/application.properties`. It was not changed. It is not a reviewed, versioned migration process and must not be treated as a safe substitute for one.
+`spring.jpa.hibernate.ddl-auto=update` remains configured at `..`. It was not changed. It is not a reviewed, versioned migration process and must not be treated as a safe substitute for one.
 
 ## 1. Reported schema inventory
 
@@ -200,7 +200,7 @@ The overlap template is only appropriate for exclusive single-unit equipment. It
 
 ## 4. Source mapping and behavior
 
-Source locations below are relative to `backend/lab-resource-platform`.
+Source locations below are relative to `..`.
 
 | Source area | Source-verified mapping/behavior | Database comparison |
 |---|---|---|

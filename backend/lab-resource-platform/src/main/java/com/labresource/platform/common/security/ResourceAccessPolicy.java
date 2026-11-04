@@ -53,6 +53,10 @@ public class ResourceAccessPolicy {
         return hasAnyRole(auth, "SYSTEM_ADMIN") && isCurrentUserApproved(auth);
     }
 
+    public boolean isApprovedUser(Authentication auth) {
+        return auth != null && auth.isAuthenticated() && isCurrentUserApproved(auth);
+    }
+
     public Long currentUserId(Authentication auth) {
         if (!isCurrentUserApproved(auth)) return null;
         return currentUser(auth).map(User::getId).orElse(null);
@@ -193,6 +197,23 @@ public class ResourceAccessPolicy {
                         "DEPARTMENT_HEAD", "INSTITUTION_ADMIN", "SYSTEM_ADMIN")
                         && canAccessEquipment(record.getEquipmentId(), auth)))
                 .orElse(false);
+    }
+
+    /**
+     * T4 Series Approval Authorization:
+     * - Primary: LAB_MANAGER (within equipment's institution)
+     * - Backup: INSTITUTION_ADMIN (strictly within equipment's institution)
+     * - Exceptional: SYSTEM_ADMIN
+     * - Prohibited: DEPARTMENT_HEAD is strictly prohibited
+     */
+    public boolean canApproveRecurringSeries(Long bookingId, Authentication auth) {
+        if (bookingId == null || auth == null || !isCurrentUserApproved(auth)) return false;
+        if (hasAnyRole(auth, "DEPARTMENT_HEAD")) return false;
+        if (isSystemAdmin(auth)) return true;
+        if (hasAnyRole(auth, "LAB_MANAGER", "INSTITUTION_ADMIN")) {
+            return canAccessBooking(bookingId, auth);
+        }
+        return false;
     }
 
     private java.util.Optional<User> currentUser(Authentication auth) {

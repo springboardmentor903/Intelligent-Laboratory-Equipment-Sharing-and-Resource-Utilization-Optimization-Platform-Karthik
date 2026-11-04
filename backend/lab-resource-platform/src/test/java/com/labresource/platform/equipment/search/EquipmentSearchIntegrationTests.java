@@ -145,14 +145,20 @@ class EquipmentSearchIntegrationTests {
     }
 
     @Test
-    void deleteEquipmentRemovesFromElasticsearch() {
+    void retireEquipmentPreservesTheRecordAndUpdatesElasticsearch() {
         Equipment existing = new Equipment();
         existing.setId(75L);
+        existing.setName("Spectrophotometer");
+        existing.setInstitutionId(1L);
+        existing.setStatus("AVAILABLE");
         when(equipmentRepository.findById(75L)).thenReturn(Optional.of(existing));
+        when(equipmentRepository.save(existing)).thenReturn(existing);
 
         equipmentService.deleteEquipment(75L);
 
-        verify(equipmentRepository).delete(existing);
-        verify(searchService).deleteEquipment(75L);
+        assertEquals("RETIRED", existing.getStatus());
+        verify(equipmentRepository).save(existing);
+        verify(equipmentRepository, never()).delete(existing);
+        verify(searchService).indexEquipment(existing);
     }
 }

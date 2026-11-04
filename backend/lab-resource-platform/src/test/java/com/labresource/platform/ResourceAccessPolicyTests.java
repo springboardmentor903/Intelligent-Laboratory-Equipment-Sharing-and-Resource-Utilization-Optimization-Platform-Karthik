@@ -224,4 +224,60 @@ class ResourceAccessPolicyTests {
         return new UsernamePasswordAuthenticationToken(email, "n/a",
                 List.of(new SimpleGrantedAuthority("ROLE_" + role)));
     }
+    @Test
+    void recurringSeriesApprovalRbacPolicyEnforcesMentorRules() {
+        // Setup equipment in institution 20
+        Equipment eq = new Equipment();
+        eq.setId(10L);
+        eq.setInstitutionId(20L);
+        when(equipment.findById(10L)).thenReturn(Optional.of(eq));
+
+        // Setup base booking on equipment 10
+        com.labresource.platform.booking.entity.Booking base = new com.labresource.platform.booking.entity.Booking();
+        base.setId(77L);
+        base.setEquipmentId(10L);
+        when(bookings.findById(77L)).thenReturn(Optional.of(base));
+
+        // 1. Lab Manager in same institution (20) -> Primary approver (ALLOWED)
+        User labMgr = user(61L, 20L);
+        labMgr.setMembershipApproved(true);
+        when(users.findByEmail("manager20@example.test")).thenReturn(Optional.of(labMgr));
+        var mgrAuth = auth("manager20@example.test", "LAB_MANAGER");
+        assertTrue(policy.canApproveRecurringSeries(77L, mgrAuth));
+
+        // 2. Institution Admin in same institution (20) -> Backup approver (ALLOWED)
+        User instAdminSame = user(62L, 20L);
+        instAdminSame.setMembershipApproved(true);
+        when(users.findByEmail("admin20@example.test")).thenReturn(Optional.of(instAdminSame));
+        var instAdminSameAuth = auth("admin20@example.test", "INSTITUTION_ADMIN");
+        assertTrue(policy.canApproveRecurringSeries(77L, instAdminSameAuth));
+
+        // 3. Institution Admin in different institution (21) -> DISALLOWED
+        User instAdminOther = user(63L, 21L);
+        instAdminOther.setMembershipApproved(true);
+        when(users.findByEmail("admin21@example.test")).thenReturn(Optional.of(instAdminOther));
+        var instAdminOtherAuth = auth("admin21@example.test", "INSTITUTION_ADMIN");
+        assertFalse(policy.canApproveRecurringSeries(77L, instAdminOtherAuth));
+
+        // 4. System Admin -> Exceptional approver (ALLOWED globally)
+        User sysAdmin = user(99L, 1L);
+        sysAdmin.setMembershipApproved(true);
+        when(users.findByEmail("sysadmin@example.test")).thenReturn(Optional.of(sysAdmin));
+        var sysAdminAuth = auth("sysadmin@example.test", "SYSTEM_ADMIN");
+        assertTrue(policy.canApproveRecurringSeries(77L, sysAdminAuth));
+
+        // 5. Department Head -> Strictly PROHIBITED from series approvals
+        User deptHead = user(64L, 20L);
+        deptHead.setMembershipApproved(true);
+        when(users.findByEmail("depthead20@example.test")).thenReturn(Optional.of(deptHead));
+        var deptHeadAuth = auth("depthead20@example.test", "DEPARTMENT_HEAD");
+        assertFalse(policy.canApproveRecurringSeries(77L, deptHeadAuth));
+
+        // 6. Researcher / Student -> DISALLOWED
+        User student = user(65L, 20L);
+        student.setMembershipApproved(true);
+        when(users.findByEmail("student20@example.test")).thenReturn(Optional.of(student));
+        var studentAuth = auth("student20@example.test", "RESEARCHER_STUDENT");
+        assertFalse(policy.canApproveRecurringSeries(77L, studentAuth));
+    }
 }

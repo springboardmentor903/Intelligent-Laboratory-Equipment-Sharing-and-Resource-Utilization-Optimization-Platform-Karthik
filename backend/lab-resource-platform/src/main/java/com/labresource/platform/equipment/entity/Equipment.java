@@ -35,6 +35,9 @@ public class Equipment {
     @Column(nullable = false, length = 150)
     private String name;
 
+    @Column(name = "asset_tag", length = 100)
+    private String assetTag;
+
     @Column(length = 100)
     private String category;
 

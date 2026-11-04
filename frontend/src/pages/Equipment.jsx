@@ -4,7 +4,7 @@ import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
 import {
   buildEquipmentSearchParams,
-  EQUIPMENT_STATUSES,
+  getEditableEquipmentStatuses,
   getEquipmentPermissions,
   validateCalibrationForm,
   validateCertificationForm,
@@ -12,7 +12,7 @@ import {
 } from '../access/equipmentWorkflow.js'
 
 const blankEquipment = (institutionId = '') => ({
-  name: '', category: '', description: '', institutionId: institutionId ?? '',
+  name: '', assetTag: '', category: '', description: '', institutionId: institutionId ?? '',
   departmentId: '',
   labLocation: '', quantity: '1', status: 'AVAILABLE',
   specificationsText: '{}', tags: '',
@@ -253,7 +253,7 @@ export default function Equipment() {
   function beginEdit(item) {
     setEditingId(item.id)
     setEquipmentForm({
-      name: item.name ?? '', category: item.category ?? '', description: item.description ?? '',
+      name: item.name ?? '', assetTag: item.assetTag ?? '', category: item.category ?? '', description: item.description ?? '',
       institutionId: item.institutionId ?? '', departmentId: item.departmentId ?? '', labLocation: item.labLocation ?? '',
       quantity: String(item.quantity ?? 1), status: item.status ?? '',
       specificationsText: asDisplayJson(item.specifications),
@@ -291,7 +291,7 @@ export default function Equipment() {
 
   async function deleteEquipment(item) {
     if (deleteLock.current || deletingId != null) return
-    if (!window.confirm(`Delete ${item.name || `equipment #${item.id}`}? This cannot be undone.`)) return
+    if (!window.confirm(`Retire ${item.name || `equipment #${item.id}`}? Its booking and maintenance history will be preserved.`)) return
     deleteLock.current = true
     setDeletingId(item.id)
     setError('')
@@ -300,7 +300,7 @@ export default function Equipment() {
       await api.delete(`/api/equipment/${item.id}`)
       equipmentRequests.current.clear()
       if (String(selectedIdRef.current) === String(item.id)) closeSelectedEquipment()
-      setSuccess('Equipment deleted.')
+      setSuccess('Equipment retired. Its history has been preserved.')
       await loadEquipment(scopedSearchFilters)
     } catch (err) {
       setError(errorMessage(err, 'Unable to delete equipment.'))
@@ -425,12 +425,13 @@ export default function Equipment() {
           <form className="booking-form" onSubmit={submitEquipment}>
             <div className="booking-time-grid">
               <div className="form-field"><label htmlFor="equipment-name">Name *</label><input id="equipment-name" maxLength={150} value={equipmentForm.name} onChange={(e) => setEquipmentForm({ ...equipmentForm, name: e.target.value })} required /></div>
+              <div className="form-field"><label htmlFor="equipment-asset-tag">Asset tag</label><input id="equipment-asset-tag" maxLength={100} value={equipmentForm.assetTag} onChange={(e) => setEquipmentForm({ ...equipmentForm, assetTag: e.target.value })} placeholder="Optional inventory label" /></div>
               <div className="form-field"><label htmlFor="equipment-category">Category</label><input id="equipment-category" maxLength={100} value={equipmentForm.category} onChange={(e) => setEquipmentForm({ ...equipmentForm, category: e.target.value })} /></div>
               <div className="form-field"><label htmlFor="equipment-institution">Institution ID *</label><input id="equipment-institution" type="number" min="1" value={equipmentForm.institutionId} onChange={(e) => setEquipmentForm({ ...equipmentForm, institutionId: e.target.value })} required /></div>
               <div className="form-field"><label htmlFor="equipment-quantity">Quantity *</label><input id="equipment-quantity" type="number" min="1" step="1" value={equipmentForm.quantity} onChange={(e) => setEquipmentForm({ ...equipmentForm, quantity: e.target.value })} required /></div>
               <div className="form-field"><label htmlFor="equipment-location">Lab location</label><input id="equipment-location" maxLength={150} value={equipmentForm.labLocation} onChange={(e) => setEquipmentForm({ ...equipmentForm, labLocation: e.target.value })} /></div>
               <div className="form-field"><label htmlFor="equipment-department">Department</label><select id="equipment-department" value={equipmentForm.departmentId || ''} onChange={(e) => setEquipmentForm({ ...equipmentForm, departmentId: e.target.value })}><option value="">None / General</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
-              <div className="form-field"><label htmlFor="equipment-status">Status</label><select id="equipment-status" value={equipmentForm.status || 'AVAILABLE'} onChange={(e) => setEquipmentForm({ ...equipmentForm, status: e.target.value })}>{EQUIPMENT_STATUSES.map((status) => <option value={status} key={status}>{status.replaceAll('_', ' ')}</option>)}</select></div>
+              <div className="form-field"><label htmlFor="equipment-status">Status</label><select id="equipment-status" value={equipmentForm.status || 'AVAILABLE'} disabled={editingId == null || !permissions.canChangeStatus || equipmentForm.status === 'RETIRED'} onChange={(e) => setEquipmentForm({ ...equipmentForm, status: e.target.value })}>{getEditableEquipmentStatuses(equipmentForm.status, permissions.canChangeStatus, editingId == null).map((status) => <option value={status} key={status}>{status.replaceAll('_', ' ')}</option>)}</select><small>BOOKED is managed by booking check-in. Retired equipment cannot be reactivated.</small></div>
             </div>
             <div className="form-field"><label htmlFor="equipment-description">Description</label><textarea id="equipment-description" maxLength={500} rows={3} value={equipmentForm.description} onChange={(e) => setEquipmentForm({ ...equipmentForm, description: e.target.value })} /></div>
             <div className="form-field"><label htmlFor="equipment-tags">Tags (comma-separated, up to 30)</label><input id="equipment-tags" placeholder="microscopy, imaging" value={equipmentForm.tags} onChange={(e) => setEquipmentForm({ ...equipmentForm, tags: e.target.value })} /></div>
@@ -471,7 +472,7 @@ export default function Equipment() {
                       )}
                       <button type="button" className="secondary-button" disabled={recordsLoading || deletingId != null} onClick={() => selectEquipment(item.id)}>{selectedId === item.id ? 'Refresh records' : 'Calibration & certification'}</button>
                       {permissions.canEdit && <button type="button" className="secondary-button" disabled={equipmentSubmitting || deletingId != null} onClick={() => beginEdit(item)}>Edit</button>}
-                      {permissions.canDelete && <button type="button" className="secondary-button" disabled={deletingId != null || equipmentSubmitting || recordSubmitting} onClick={() => deleteEquipment(item)}>{deletingId === item.id ? 'Deleting…' : 'Delete'}</button>}
+                      {permissions.canDelete && status !== 'RETIRED' && <button type="button" className="secondary-button" disabled={deletingId != null || equipmentSubmitting || recordSubmitting} onClick={() => deleteEquipment(item)}>{deletingId === item.id ? 'Retiring…' : 'Retire'}</button>}
                     </div>
                   </article>
                 })}

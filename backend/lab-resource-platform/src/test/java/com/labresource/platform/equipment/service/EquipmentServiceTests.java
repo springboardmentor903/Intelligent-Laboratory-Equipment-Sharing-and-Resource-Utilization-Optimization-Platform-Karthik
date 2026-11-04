@@ -135,6 +135,79 @@ class EquipmentServiceTests {
         verify(equipmentRepository, never()).save(any(Equipment.class));
     }
 
+    @Test
+    void createEquipmentRejectsManuallySettingBookedOrMaintenanceStatus() {
+        when(institutionRepository.existsById(7L)).thenReturn(true);
+        Equipment request = validEquipment();
+        request.setStatus("BOOKED");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> equipmentService.createEquipment(request));
+
+        verify(equipmentRepository, never()).save(any(Equipment.class));
+    }
+
+    @Test
+    void updateEquipmentAllowsManagerStatusTransitionToMaintenance() {
+        Equipment existing = validEquipment();
+        existing.setId(20L);
+        when(equipmentRepository.findById(20L)).thenReturn(Optional.of(existing));
+        when(institutionRepository.existsById(7L)).thenReturn(true);
+        when(equipmentRepository.save(any(Equipment.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        Equipment request = validEquipment();
+        request.setStatus("UNDER_MAINTENANCE");
+
+        Equipment updated = equipmentService.updateEquipment(20L, request);
+
+        assertEquals("UNDER_MAINTENANCE", updated.getStatus());
+        verify(equipmentRepository).save(existing);
+    }
+
+    @Test
+    void updateEquipmentRejectsSettingBookedManually() {
+        Equipment existing = validEquipment();
+        existing.setId(21L);
+        when(equipmentRepository.findById(21L)).thenReturn(Optional.of(existing));
+        Equipment request = validEquipment();
+        request.setStatus("BOOKED");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> equipmentService.updateEquipment(21L, request));
+
+        verify(equipmentRepository, never()).save(any(Equipment.class));
+    }
+
+    @Test
+    void updateEquipmentCannotReactivateRetiredEquipment() {
+        Equipment existing = validEquipment();
+        existing.setId(22L);
+        existing.setStatus("RETIRED");
+        when(equipmentRepository.findById(22L)).thenReturn(Optional.of(existing));
+        Equipment request = validEquipment();
+        request.setStatus("AVAILABLE");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> equipmentService.updateEquipment(22L, request));
+
+        verify(equipmentRepository, never()).save(any(Equipment.class));
+    }
+
+    @Test
+    void deleteEquipmentRetiresTheRecordInsteadOfDeletingItsHistory() {
+        Equipment existing = validEquipment();
+        existing.setId(23L);
+        existing.setStatus("BOOKED");
+        when(equipmentRepository.findById(23L)).thenReturn(Optional.of(existing));
+        when(equipmentRepository.save(existing)).thenReturn(existing);
+
+        equipmentService.deleteEquipment(23L);
+
+        assertEquals("RETIRED", existing.getStatus());
+        verify(equipmentRepository).save(existing);
+        verify(equipmentRepository, never()).delete(existing);
+    }
+
     private Equipment validEquipment() {
         Equipment equipment = new Equipment();
         equipment.setName("Microscope");

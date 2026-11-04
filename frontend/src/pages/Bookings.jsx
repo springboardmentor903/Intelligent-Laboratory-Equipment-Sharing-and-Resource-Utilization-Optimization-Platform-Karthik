@@ -1,20 +1,25 @@
-
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
 import {
   canRequestBooking,
+  canApproveBookings,
   getBookingRecordsUrl,
 } from '../access/roleAccess.js'
 import {
   BOOKING_REFRESH_EVENT,
   getBookingActionError,
   getBookingActions,
+  getCheckInAvailability,
   performBookingAction,
   formatBookingStatus,
   getAvailabilityRequest,
 } from '../access/bookingWorkflow.js'
 import { buildBookingPayload } from '../access/bookingDateTime.js'
+import SchedulingRecommendations from '../components/booking/SchedulingRecommendations.jsx'
+import PendingApprovalsQueue from '../components/booking/PendingApprovalsQueue.jsx'
+import WaitlistPanel from '../components/booking/WaitlistPanel.jsx'
 
 const initialForm = {
   equipmentId: '',
@@ -70,6 +75,124 @@ export default function Bookings() {
   const [auditLogs, setAuditLogs] = useState([])
   const [auditLoading, setAuditLoading] = useState(false)
   const [auditError, setAuditError] = useState('')
+  const actionLock = useRef(false)
+
+  const [activeTab, setActiveTab] = useState('bookings')
+  const [pendingCount, setPendingCount] = useState(0)
+  const [waitlistCount, setWaitlistCount] = useState(0)
+  const [recurringBooking, setRecurringBooking] = useState(false)
+  const [recurringFrequency, setRecurringFrequency] = useState('WEEKLY')
+  const [recurringCount, setRecurringCount] = useState(4)
+  const [recurringPreview, setRecurringPreview] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [recommendations, setRecommendations] = useState(null)
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false)
+
+  const loadCounts = useCallback(async () => {
+    if (canApproveBookings(user?.roles)) {
+      try {
+        const pendingResp = await api.get('/api/bookings/pending')
+        setPendingCount(Array.isArray(pendingResp.data) ? pendingResp.data.length : 0)
+      } catch {}
+    }
+    try {
+      const waitlistResp = await api.get('/api/waitlist/my')
+      setWaitlistCount(Array.isArray(waitlistResp.data) ? waitlistResp.data.length : 0)
+    } catch {}
+  }, [user?.roles])
+
+  const handleSelectRecommendedSlot = (startIso, endIso) => {
+    const formatToLocalInput = (iso) => {
+      if (!iso) return ''
+      const d = new Date(iso)
+      if (Number.isNaN(d.getTime())) return String(iso).slice(0, 16)
+      const pad = (n) => String(n).padStart(2, '0')
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+    }
+    setForm((prev) => ({
+      ...prev,
+      startTime: formatToLocalInput(startIso),
+      endTime: formatToLocalInput(endIso),
+    }))
+    setRecommendations(null)
+    setError('')
+    setSuccess('Applied recommended time slot! Click submit to confirm.')
+  }
+
+  const handleSelectRecommendedEquipment = (equipmentId) => {
+    setForm((prev) => ({
+      ...prev,
+      equipmentId: String(equipmentId),
+    }))
+    setRecommendations(null)
+    setError('')
+    setSuccess('Switched to recommended equipment!')
+  }
+
+  const handleJoinWaitlistFromRecommendation = async () => {
+    try {
+      setSubmitting(true)
+      const bookingPayload = buildBookingPayload(form)
+      await api.post('/api/waitlist', {
+        equipmentId: Number(form.equipmentId),
+        requestedStartTime: bookingPayload.startTime,
+        requestedEndTime: bookingPayload.endTime,
+        notes: form.purpose || 'Joined via scheduling recommendation',
+      })
+      setSuccess('Successfully added to waitlist! Check the My Waitlist tab.')
+      setRecommendations(null)
+      setActiveTab('waitlist')
+      loadCounts()
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to join waitlist.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handlePreviewRecurring = async () => {
+    if (!form.equipmentId || !form.startTime || !form.endTime) {
+      setError('Please select equipment, start time, and end time to preview occurrences.')
+      return
+    }
+    setPreviewLoading(true)
+    setError('')
+    try {
+      const bookingPayload = buildBookingPayload(form)
+      const resp = await api.post('/api/bookings/recurring/preview', {
+        equipmentId: Number(form.equipmentId),
+        startTime: bookingPayload.startTime,
+        endTime: bookingPayload.endTime,
+        purpose: form.purpose?.trim() || undefined,
+        recurrenceRule: recurringFrequency,
+        recurrenceCount: Number(recurringCount),
+      })
+      setRecurringPreview(resp.data)
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to preview recurring occurrences.')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  async function handleCancelSeries(booking) {
+    if (!window.confirm(`Are you sure you want to cancel the entire recurring series for booking #${booking.id}?`)) {
+      return
+    }
+    setActionInProgress(`${booking.id}:cancel-series`)
+    setActionError('')
+    try {
+      const res = await api.post(`/api/bookings/recurring/${booking.id}/cancel-series`, {
+        reason: 'User cancelled recurring series',
+      })
+      setSuccess(res.data?.message || 'Recurring series cancelled.')
+      await loadData()
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to cancel recurring series.')
+    } finally {
+      setActionInProgress(null)
+    }
+  }
 
   async function viewAudit(bookingId) {
     setSelectedAuditBookingId(bookingId)
@@ -137,6 +260,7 @@ export default function Bookings() {
       if (errors.length > 0) {
         setError(errors.join(' | '))
       }
+      void loadCounts()
     } catch (err) {
       setError(
         getErrorMessage(err, 'Unable to load booking information.'),
@@ -144,7 +268,7 @@ export default function Bookings() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, loadCounts])
 
   useEffect(() => {
     // Start the asynchronous fetch after React has committed this render.
@@ -171,7 +295,6 @@ export default function Bookings() {
 
     if (!user?.id) {
       setError('Your user ID is unavailable. Please sign in again.')
-      return
     }
 
     if (
@@ -233,17 +356,48 @@ export default function Bookings() {
         const remaining = Number(availability.data?.remainingUnits || 0)
         setError(remaining > 0
           ? 'The equipment is not accepting reservations for this time range.'
-          : 'No units are available during this time range. Try another time.')
+          : 'No units are available during this time range. Searching smart alternatives…')
+        try {
+          setRecommendationsLoading(true)
+          const recResp = await api.get('/api/bookings/recommendations', {
+            params: {
+              equipmentId: form.equipmentId,
+              startTime: bookingPayload.startTime,
+              endTime: bookingPayload.endTime,
+            },
+          })
+          setRecommendations(recResp.data)
+        } catch {
+          // ignore error fetching recommendations
+        } finally {
+          setRecommendationsLoading(false)
+        }
         return
       }
-      // LocalDateTime has no timezone; preserve the entered lab wall-clock values.
-      // The backend validates whether the start time is in its future.
-      await api.post('/api/bookings', bookingPayload)
 
-      setForm(initialForm)
-      setSuccess('Booking request submitted successfully.')
+      if (recurringBooking) {
+        const resp = await api.post('/api/bookings/recurring', {
+          equipmentId: Number(form.equipmentId),
+          startTime: bookingPayload.startTime,
+          endTime: bookingPayload.endTime,
+          recurrenceRule: recurringFrequency,
+          recurrenceCount: Number(recurringCount),
+          purpose: form.purpose,
+        })
+        setForm(initialForm)
+        setRecurringBooking(false)
+        setSuccess(resp.data?.summary || 'Recurring bookings submitted successfully.')
+        await loadData()
+      } else {
+        // LocalDateTime has no timezone; preserve the entered lab wall-clock values.
+        // The backend validates whether the start time is in its future.
+        await api.post('/api/bookings', bookingPayload)
 
-      await loadData()
+        setForm(initialForm)
+        setSuccess('Booking request submitted successfully.')
+
+        await loadData()
+      }
     } catch (err) {
       setError(
         getErrorMessage(
@@ -257,7 +411,8 @@ export default function Bookings() {
   }
 
   async function handleBookingAction(booking, action) {
-    if (actionInProgress) return
+    if (actionLock.current) return
+    actionLock.current = true
     setActionError('')
     setSuccess('')
     setActionInProgress(`${booking.id}:${action}`)
@@ -274,14 +429,15 @@ export default function Bookings() {
         cancel: 'Booking cancelled.',
         approve: 'Booking approved.',
         reject: 'Booking rejected.',
-        start: 'Booking marked in use.',
-        complete: 'Booking completed.',
         'no-show': 'Booking marked as no show.',
+        'check-in': 'Check-in successful. Booking is now in use.',
+        'check-out': 'Check-out successful. Booking is completed.',
       }[action]
       setSuccess(resultText)
     } catch (err) {
       setActionError(getBookingActionError(err, 'Unable to update this booking.'))
     } finally {
+      actionLock.current = false
       setActionInProgress(null)
     }
   }
@@ -353,7 +509,61 @@ export default function Bookings() {
         </div>
       )}
 
-      {canRequestBooking(user?.roles) ? <section className="booking-form-card">
+      {/* Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className={`btn ${activeTab === 'bookings' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setActiveTab('bookings')}
+          style={{ fontWeight: 600, fontSize: '14px', padding: '8px 18px' }}
+        >
+          📅 Bookings & Reservations ({bookings.length})
+        </button>
+
+        {canApproveBookings(user?.roles) && (
+          <button
+            type="button"
+            className={`btn ${activeTab === 'approvals' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab('approvals')}
+            style={{ fontWeight: 600, fontSize: '14px', padding: '8px 18px' }}
+          >
+            ⏳ Pending Approvals {pendingCount > 0 ? `(${pendingCount})` : ''}
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={`btn ${activeTab === 'waitlist' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setActiveTab('waitlist')}
+          style={{ fontWeight: 600, fontSize: '14px', padding: '8px 18px' }}
+        >
+          📋 My Waitlist {waitlistCount > 0 ? `(${waitlistCount})` : ''}
+        </button>
+      </div>
+
+      {activeTab === 'approvals' && (
+        <PendingApprovalsQueue
+          equipmentList={equipment}
+          onBookingProcessed={() => {
+            loadData()
+            loadCounts()
+          }}
+        />
+      )}
+
+      {activeTab === 'waitlist' && (
+        <WaitlistPanel
+          equipmentList={equipment}
+          onWaitlistConverted={() => {
+            loadData()
+            loadCounts()
+          }}
+        />
+      )}
+
+      {activeTab === 'bookings' && (
+        <>
+          {canRequestBooking(user?.roles) ? <section className="booking-form-card">
         <div className="module-section-title">
           <div className="module-section-icon" aria-hidden="true">
             📅
@@ -447,6 +657,102 @@ export default function Bookings() {
               />
             </div>
 
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px', marginBottom: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
+                <input
+                  type="checkbox"
+                  checked={recurringBooking}
+                  onChange={(e) => setRecurringBooking(e.target.checked)}
+                  disabled={submitting}
+                />
+                🔁 Repeat as Recurring Booking
+              </label>
+
+              {recurringBooking && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '12px', padding: '14px', background: 'var(--surface-secondary, #fafafa)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div className="form-field">
+                    <label htmlFor="recurring-frequency">Frequency Pattern</label>
+                    <select
+                      id="recurring-frequency"
+                      value={recurringFrequency}
+                      onChange={(e) => {
+                        setRecurringFrequency(e.target.value)
+                        setRecurringPreview(null)
+                      }}
+                      disabled={submitting}
+                    >
+                      <option value="DAILY">Daily</option>
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="BIWEEKLY">Bi-weekly (Every 2 weeks)</option>
+                      <option value="MONTHLY">Monthly</option>
+                    </select>
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="recurring-count">Number of Occurrences (2-12)</label>
+                    <input
+                      id="recurring-count"
+                      type="number"
+                      min={2}
+                      max={12}
+                      value={recurringCount}
+                      onChange={(e) => {
+                        setRecurringCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))
+                        setRecurringPreview(null)
+                      }}
+                      disabled={submitting}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={handlePreviewRecurring}
+                      disabled={submitting || previewLoading}
+                    >
+                      {previewLoading ? 'Checking availability…' : '👁 Preview Recurrence Schedule'}
+                    </button>
+                    {recurringPreview && (
+                      <span style={{ fontSize: '13px', color: recurringPreview.conflictCount > 0 ? '#f59e0b' : '#10b981', fontWeight: 600 }}>
+                        {recurringPreview.summary}
+                      </span>
+                    )}
+                  </div>
+                  {recurringPreview?.createdBookings?.length > 0 && (
+                    <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
+                      <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                            <th style={{ padding: '6px' }}>#</th>
+                            <th style={{ padding: '6px' }}>Start Time</th>
+                            <th style={{ padding: '6px' }}>End Time</th>
+                            <th style={{ padding: '6px' }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {recurringPreview.createdBookings.map((occ, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '6px' }}>{idx + 1}</td>
+                              <td style={{ padding: '6px' }}>{formatDate(occ.startTime)}</td>
+                              <td style={{ padding: '6px' }}>{formatDate(occ.endTime)}</td>
+                              <td style={{ padding: '6px', color: '#10b981', fontWeight: 600 }}>✓ Available</td>
+                            </tr>
+                          ))}
+                          {recurringPreview.conflictedSlots?.map((cSlot, cIdx) => (
+                            <tr key={`conf-${cIdx}`} style={{ borderBottom: '1px solid var(--border)', background: 'rgba(239, 68, 68, 0.05)' }}>
+                              <td style={{ padding: '6px' }}>—</td>
+                              <td style={{ padding: '6px' }}>{formatDate(cSlot)}</td>
+                              <td style={{ padding: '6px' }}>—</td>
+                              <td style={{ padding: '6px', color: '#ef4444', fontWeight: 600 }}>✕ Conflicted</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
               className="button button-primary"
@@ -455,6 +761,17 @@ export default function Bookings() {
               {submitting ? 'Submitting request…' : 'Submit booking request'}
             </button>
           </form>
+        )}
+
+        {recommendations && (
+          <SchedulingRecommendations
+            recommendations={recommendations}
+            loading={recommendationsLoading}
+            onSelectTimeSlot={handleSelectRecommendedSlot}
+            onSelectEquipment={handleSelectRecommendedEquipment}
+            onJoinWaitlist={handleJoinWaitlistFromRecommendation}
+            onClose={() => setRecommendations(null)}
+          />
         )}
 
         <p className="booking-form-note">
@@ -550,10 +867,11 @@ export default function Bookings() {
                 <tbody>
                   {filteredBookings.map((booking) => {
                     const actions = getBookingActions(booking, user?.roles, user?.id)
+                    const checkIn = getCheckInAvailability(booking, user?.id)
                     const pendingAction = actionInProgress?.startsWith(`${booking.id}:`)
                     return (
                     <tr key={booking.id}>
-                      <td>#{booking.id}</td>
+                      <td><Link to={`/bookings/${booking.id}`}>#{booking.id}</Link></td>
                       <td>#{booking.equipmentId ?? '—'}</td>
                       <td>
                         <div className="booking-schedule">
@@ -569,8 +887,34 @@ export default function Bookings() {
                       </td>
                       <td>
                         {actions.includes('cancel') && (
-                          <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'cancel')}>
-                            {pendingAction && actionInProgress.endsWith(':cancel') ? 'Cancelling…' : 'Cancel'}
+                          <>
+                            <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'cancel')}>
+                              {pendingAction && actionInProgress.endsWith(':cancel') ? 'Cancelling…' : 'Cancel'}
+                            </button>
+                            {booking.purpose?.includes('Recurring') && (
+                              <>
+                                {' '}
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  style={{ color: '#ef4444' }}
+                                  disabled={Boolean(actionInProgress)}
+                                  onClick={() => handleCancelSeries(booking)}
+                                >
+                                  {actionInProgress === `${booking.id}:cancel-series` ? 'Cancelling series…' : 'Cancel Series'}
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                        {actions.includes('check-in') && (
+                          <button type="button" className="secondary-button" disabled={Boolean(actionInProgress) || !checkIn.eligible} title={checkIn.reason || undefined} onClick={() => handleBookingAction(booking, 'check-in')}>
+                            {pendingAction && actionInProgress.endsWith(':check-in') ? 'Checking in…' : 'Check In'}
+                          </button>
+                        )}
+                        {actions.includes('check-out') && (
+                          <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'check-out')}>
+                            {pendingAction && actionInProgress.endsWith(':check-out') ? 'Checking out…' : 'Check Out'}
                           </button>
                         )}
                         {actions.includes('approve') && (
@@ -583,19 +927,9 @@ export default function Bookings() {
                             </button>
                           </>
                         )}
-                        {actions.includes('start') && (
-                          <>
-                            <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'start')}>
-                              {pendingAction && actionInProgress.endsWith(':start') ? 'Starting…' : 'Mark in use'}
-                            </button>{' '}
-                            <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'no-show')}>
-                              {pendingAction && actionInProgress.endsWith(':no-show') ? 'Updating…' : 'Mark no show'}
-                            </button>
-                          </>
-                        )}
-                        {actions.includes('complete') && (
-                          <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'complete')}>
-                            {pendingAction && actionInProgress.endsWith(':complete') ? 'Completing…' : 'Complete'}
+                        {actions.includes('no-show') && (
+                          <button type="button" className="secondary-button" disabled={Boolean(actionInProgress)} onClick={() => handleBookingAction(booking, 'no-show')}>
+                            {pendingAction && actionInProgress.endsWith(':no-show') ? 'Updating…' : 'Mark no show'}
                           </button>
                         )}
                         {!actions.length && <span aria-label="No available actions">—</span>}
@@ -656,6 +990,8 @@ export default function Bookings() {
             </div>
           )}
         </section>
+      )}
+        </>
       )}
     </div>
   )

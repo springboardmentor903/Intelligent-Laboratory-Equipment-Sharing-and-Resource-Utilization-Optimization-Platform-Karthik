@@ -2,14 +2,19 @@ package com.labresource.platform.equipment.repository;
 
 import com.labresource.platform.equipment.entity.Equipment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Lock;
 import jakarta.persistence.LockModeType;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
-public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
+public interface EquipmentRepository extends JpaRepository<Equipment, Long>, JpaSpecificationExecutor<Equipment> {
 
     /** Serializes booking capacity checks for the same inventory row. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -17,6 +22,26 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
     java.util.Optional<Equipment> findByIdForBooking(@Param("id") Long id);
 
     List<Equipment> findByInstitutionId(Long institutionId);
+
+    boolean existsByAssetTagIgnoreCase(String assetTag);
+
+    boolean existsByAssetTagIgnoreCaseAndIdNot(String assetTag, Long id);
+
+    default Page<Equipment> findForLiveMonitoring(
+            Long institutionId,
+            String status,
+            String query,
+            Pageable pageable) {
+        Pageable effectivePageable = pageable;
+        if (effectivePageable != null && effectivePageable.getSort().isUnsorted()) {
+            effectivePageable = PageRequest.of(
+                    effectivePageable.getPageNumber(),
+                    effectivePageable.getPageSize(),
+                    Sort.by(Sort.Direction.ASC, "id")
+            );
+        }
+        return findAll(EquipmentSpecifications.forLiveMonitoring(institutionId, status, query), effectivePageable);
+    }
 
     List<Equipment> findByDepartmentId(Long departmentId);
 

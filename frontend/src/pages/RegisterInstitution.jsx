@@ -158,7 +158,9 @@ export default function RegisterInstitution() {
           </h3>
 
           <div className="form-field">
-            <label htmlFor="inst-name">College / Institution name *</label>
+            <label htmlFor="inst-name">
+              College / Institution name <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <input
               id="inst-name"
               name="name"
@@ -171,7 +173,7 @@ export default function RegisterInstitution() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="auth-grid-2col">
             <div className="form-field">
               <label htmlFor="inst-location">City / Campus location</label>
               <input
@@ -233,9 +235,11 @@ export default function RegisterInstitution() {
             This account will manage departments, equipment, and member approvals for this college.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="auth-grid-2col">
             <div className="form-field">
-              <label htmlFor="admin-full-name">Admin full name *</label>
+              <label htmlFor="admin-full-name">
+                Admin full name <span className="required-indicator" aria-hidden="true">*</span>
+              </label>
               <input
                 id="admin-full-name"
                 name="adminFullName"
@@ -263,7 +267,9 @@ export default function RegisterInstitution() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="admin-email">Admin login email *</label>
+            <label htmlFor="admin-email">
+              Admin login email <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <input
               id="admin-email"
               name="adminEmail"
@@ -278,7 +284,9 @@ export default function RegisterInstitution() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="admin-password">Admin password *</label>
+            <label htmlFor="admin-password">
+              Admin password <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <div className="password-input-wrapper">
               <input
                 id="admin-password"
@@ -305,7 +313,9 @@ export default function RegisterInstitution() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="admin-confirm-password">Confirm admin password *</label>
+            <label htmlFor="admin-confirm-password">
+              Confirm admin password <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <input
               id="admin-confirm-password"
               name="confirmPassword"
@@ -323,21 +333,25 @@ export default function RegisterInstitution() {
 
           <button
             type="submit"
-            className="button button-primary"
-            style={{ width: '100%', marginTop: '0.75rem' }}
+            className="button button-primary register-submit-btn"
             disabled={submitting}
           >
             {submitting ? 'Registering institution…' : 'Register institution'}
           </button>
         </form>
 
-        <div className="auth-footer" style={{ marginTop: '1.25rem' }}>
+        <div className="auth-footer">
           <p>
             Looking to register as a student or faculty member?{' '}
-            <Link to="/register">Individual user registration</Link>
+            <Link to="/register" className="auth-link auth-link-blue">
+              Individual user registration
+            </Link>
           </p>
           <p>
-            Already registered? <Link to="/login">Sign in</Link>
+            Already registered?{' '}
+            <Link to="/login" className="auth-link auth-link-green">
+              Sign in
+            </Link>
           </p>
         </div>
       </section>

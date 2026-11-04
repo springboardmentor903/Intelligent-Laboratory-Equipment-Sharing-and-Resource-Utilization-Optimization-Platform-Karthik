@@ -16,6 +16,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 @Configuration
 @EnableMethodSecurity
@@ -63,6 +64,12 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+
+                        // WebSocket public endpoint - explicit path matcher compatible with Spring Security 7
+                        .requestMatchers(
+                                PathPatternRequestMatcher.pathPattern("/ws/equipment"),
+                                PathPatternRequestMatcher.pathPattern("/ws/equipment/**")
+                        ).permitAll()
 
                         // Public endpoints
                         .requestMatchers(

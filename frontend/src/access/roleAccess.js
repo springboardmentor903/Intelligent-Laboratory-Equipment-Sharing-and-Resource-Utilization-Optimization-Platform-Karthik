@@ -29,6 +29,7 @@ const COMMON_NAVIGATION = Object.freeze([
   { label: 'Bookings', to: '/bookings' },
   { label: 'Booking calendar', to: '/booking-calendar' },
   { label: 'Utilization', to: '/utilization' },
+  { label: 'Live monitoring', to: '/monitoring' },
   { label: 'Maintenance', to: '/maintenance' },
   { label: 'Profile', to: '/profile' },
 ])
@@ -106,5 +107,17 @@ export function getDashboardAccessPlan(roles, userId) {
 }
 
 export function canRequestBooking(roles) {
-  return hasValidRoles(roles) && roles.includes('RESEARCHER_STUDENT')
+  return hasAnyRole(roles, ['RESEARCHER_STUDENT', 'DEPARTMENT_HEAD'])
+}
+
+export const BOOKING_APPROVAL_ROLES = Object.freeze([
+  'LAB_TECHNICIAN',
+  'LAB_MANAGER',
+  'DEPARTMENT_HEAD',
+  'INSTITUTION_ADMIN',
+  'SYSTEM_ADMIN',
+])
+
+export function canApproveBookings(roles) {
+  return hasAnyRole(roles, BOOKING_APPROVAL_ROLES)
 }

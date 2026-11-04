@@ -1,12 +1,13 @@
 import { hasValidRoles } from './roleAccess.js'
 
-const EQUIPMENT_WRITE_ROLES = Object.freeze([
+const EQUIPMENT_CREATE_ROLES = Object.freeze(['INSTITUTION_ADMIN', 'SYSTEM_ADMIN'])
+const EQUIPMENT_EDIT_ROLES = Object.freeze(['LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN'])
+const EQUIPMENT_RECORD_ROLES = Object.freeze([
   'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN',
 ])
 const EQUIPMENT_DELETE_ROLES = Object.freeze([
   'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN',
 ])
-const RECORD_CREATE_ROLES = EQUIPMENT_WRITE_ROLES
 export const EQUIPMENT_STATUSES = Object.freeze([
   'AVAILABLE', 'BOOKED', 'UNDER_MAINTENANCE', 'OUT_OF_SERVICE', 'RETIRED',
 ])
@@ -14,12 +15,21 @@ export const EQUIPMENT_STATUSES = Object.freeze([
 export function getEquipmentPermissions(roles = []) {
   if (!hasValidRoles(roles)) roles = []
   return {
-    canCreate: roles.some((role) => EQUIPMENT_WRITE_ROLES.includes(role)),
-    canEdit: roles.some((role) => EQUIPMENT_WRITE_ROLES.includes(role)),
+    canCreate: roles.some((role) => EQUIPMENT_CREATE_ROLES.includes(role)),
+    canEdit: roles.some((role) => EQUIPMENT_EDIT_ROLES.includes(role)),
     canDelete: roles.some((role) => EQUIPMENT_DELETE_ROLES.includes(role)),
-    canCreateRecords: roles.some((role) => RECORD_CREATE_ROLES.includes(role)),
+    canCreateRecords: roles.some((role) => EQUIPMENT_RECORD_ROLES.includes(role)),
+    canChangeStatus: roles.some((role) => EQUIPMENT_EDIT_ROLES.includes(role)),
     canFilterInstitution: roles.includes('SYSTEM_ADMIN'),
   }
+}
+
+export function getEditableEquipmentStatuses(currentStatus, canChangeStatus, creating = false) {
+  const current = String(currentStatus || 'AVAILABLE').toUpperCase()
+  if (creating) return ['AVAILABLE']
+  if (!canChangeStatus || current === 'RETIRED') return [current]
+  if (current === 'BOOKED') return ['BOOKED', 'RETIRED']
+  return ['AVAILABLE', 'UNDER_MAINTENANCE', 'OUT_OF_SERVICE', 'RETIRED']
 }
 
 export function buildEquipmentSearchParams(filters) {
@@ -54,7 +64,7 @@ export function validateEquipmentForm(form) {
   const quantity = Number(form.quantity)
   if (!Number.isInteger(quantity) || quantity < 1) errors.push('Quantity must be an integer of at least 1.')
   for (const [field, label, max] of [
-    ['category', 'Category', 100], ['description', 'Description', 500], ['labLocation', 'Lab location', 150], ['status', 'Status', 30],
+    ['assetTag', 'Asset tag', 100], ['category', 'Category', 100], ['description', 'Description', 500], ['labLocation', 'Lab location', 150], ['status', 'Status', 30],
   ]) {
     if (String(form[field] ?? '').trim().length > max) errors.push(`${label} must be ${max} characters or fewer.`)
   }
@@ -89,6 +99,7 @@ export function validateEquipmentForm(form) {
 
   const body = {
     name,
+    assetTag: String(form.assetTag ?? '').trim() || null,
     category: String(form.category ?? '').trim() || null,
     description: String(form.description ?? '').trim() || null,
     institutionId,

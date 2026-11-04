@@ -50,7 +50,7 @@ class BookingServiceTests {
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(equipmentRepository.findByIdForBooking(11L)).thenReturn(Optional.of(equipment));
         when(bookings.findByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
-                eq(11L), eq(List.of("PENDING", "APPROVED", "IN_USE")), any(), any()))
+                eq(11L), eq(List.of("PENDING", "APPROVED", "CONFIRMED", "IN_USE")), any(), any()))
                 .thenReturn(List.of());
         when(bookings.save(any(Booking.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -74,7 +74,7 @@ class BookingServiceTests {
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(equipmentRepository.findByIdForBooking(11L)).thenReturn(Optional.of(equipment));
         when(bookings.findByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
-                eq(11L), eq(List.of("PENDING", "APPROVED", "IN_USE")), any(), any()))
+                eq(11L), eq(List.of("PENDING", "APPROVED", "CONFIRMED", "IN_USE")), any(), any()))
                 .thenReturn(List.of(existing));
 
         assertThrows(IllegalArgumentException.class,
@@ -177,7 +177,7 @@ class BookingServiceTests {
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(equipmentRepository.findByIdForBooking(11L)).thenReturn(Optional.of(equipment));
         when(bookings.findByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
-                eq(11L), eq(List.of("PENDING", "APPROVED", "IN_USE")), any(), any()))
+                eq(11L), eq(List.of("PENDING", "APPROVED", "CONFIRMED", "IN_USE")), any(), any()))
                 .thenReturn(List.of(b1, b2));
         when(bookings.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -209,7 +209,7 @@ class BookingServiceTests {
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(equipmentRepository.findByIdForBooking(11L)).thenReturn(Optional.of(equipment));
         when(bookings.findByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
-                eq(11L), eq(List.of("PENDING", "APPROVED", "IN_USE")), any(), any()))
+                eq(11L), eq(List.of("PENDING", "APPROVED", "CONFIRMED", "IN_USE")), any(), any()))
                 .thenReturn(List.of(b1, b2));
 
         IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,
@@ -241,7 +241,7 @@ class BookingServiceTests {
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(equipmentRepository.findByIdForBooking(11L)).thenReturn(Optional.of(equipment));
         when(bookings.findByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
-                eq(11L), eq(List.of("PENDING", "APPROVED", "IN_USE")), any(), any()))
+                eq(11L), eq(List.of("PENDING", "APPROVED", "CONFIRMED", "IN_USE")), any(), any()))
                 .thenReturn(List.of(b1, b2));
         when(bookings.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -336,10 +336,9 @@ class BookingServiceTests {
         when(bookings.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertEquals("APPROVED", service.updateBookingStatus(32L, "APPROVED").getStatus());
-        assertEquals("IN_USE", service.updateBookingStatus(32L, "IN_USE").getStatus());
-        assertEquals("COMPLETED", service.updateBookingStatus(32L, "COMPLETED").getStatus());
-        assertThrows(IllegalArgumentException.class,
-                () -> service.updateBookingStatus(32L, "CANCELLED"));
+        assertThrows(IllegalArgumentException.class, () -> service.updateBookingStatus(32L, "IN_USE"));
+        assertThrows(IllegalArgumentException.class, () -> service.updateBookingStatus(32L, "COMPLETED"));
+        assertEquals("CANCELLED", service.updateBookingStatus(32L, "CANCELLED").getStatus());
     }
 
     @Test
@@ -348,7 +347,7 @@ class BookingServiceTests {
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(equipmentRepository.findByIdForBooking(11L)).thenReturn(Optional.of(equipment));
         when(bookings.findByEquipmentIdAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
-                eq(11L), eq(List.of("PENDING", "APPROVED", "IN_USE")), any(), any()))
+                eq(11L), eq(List.of("PENDING", "APPROVED", "CONFIRMED", "IN_USE")), any(), any()))
                 .thenReturn(List.of());
         when(bookings.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

@@ -33,6 +33,9 @@ public class Utilization {
     @Column(name = "booking_id")
     private Long bookingId;
 
+    @Column(name = "usage_type", nullable = false, length = 30)
+    private String usageType = "BOOKING";
+
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
 

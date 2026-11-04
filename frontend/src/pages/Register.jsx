@@ -167,7 +167,7 @@ export default function Register() {
 
   return (
     <div className="auth-page">
-      <section className="auth-card app-surface" style={{ maxWidth: '580px' }}>
+      <section className="auth-card auth-card-register app-surface">
         <div className="auth-heading">
           <div className="auth-logo" aria-hidden="true">
             L
@@ -203,7 +203,9 @@ export default function Register() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-field">
-            <label htmlFor="register-institution">Institution *</label>
+            <label htmlFor="register-institution">
+              Institution <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             {loadingInstitutions ? (
               <p className="field-hint">Loading institutions…</p>
             ) : (
@@ -228,7 +230,7 @@ export default function Register() {
             </small>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="auth-grid-2col">
             <div className="form-field">
               <label htmlFor="register-department">Department</label>
               <select
@@ -251,7 +253,9 @@ export default function Register() {
             </div>
 
             <div className="form-field">
-              <label htmlFor="register-role">Requested Role *</label>
+              <label htmlFor="register-role">
+                Requested Role <span className="required-indicator" aria-hidden="true">*</span>
+              </label>
               <select
                 id="register-role"
                 name="requestedRole"
@@ -272,9 +276,11 @@ export default function Register() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="auth-grid-2col">
             <div className="form-field">
-              <label htmlFor="register-fullname">Full Name *</label>
+              <label htmlFor="register-fullname">
+                Full Name <span className="required-indicator" aria-hidden="true">*</span>
+              </label>
               <input
                 id="register-fullname"
                 name="fullName"
@@ -304,7 +310,9 @@ export default function Register() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="register-email">Email address *</label>
+            <label htmlFor="register-email">
+              Email address <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <input
               id="register-email"
               name="email"
@@ -320,7 +328,9 @@ export default function Register() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="register-password">Password *</label>
+            <label htmlFor="register-password">
+              Password <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <div className="password-input-wrapper">
               <input
                 id="register-password"
@@ -347,7 +357,9 @@ export default function Register() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="register-confirm">Confirm password *</label>
+            <label htmlFor="register-confirm">
+              Confirm password <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <input
               id="register-confirm"
               name="confirmPassword"
@@ -365,25 +377,31 @@ export default function Register() {
 
           <button
             type="submit"
-            className="button button-primary"
-            style={{ width: '100%', marginTop: '0.5rem' }}
+            className="button button-primary register-submit-btn"
             disabled={submitting}
           >
             {submitting ? 'Submitting registration…' : 'Register'}
           </button>
         </form>
 
-        <div className="auth-footer" style={{ marginTop: '1.25rem' }}>
+        <div className="auth-footer">
           <p>
             Represent an educational institution?{' '}
-            <Link to="/register-institution">Register your institution here →</Link>
+            <Link to="/register-institution" className="auth-link auth-link-blue">
+              Register your institution here →
+            </Link>
           </p>
           <p>
             Need platform-level oversight?{' '}
-            <Link to="/apply-system-admin">Apply for System Administrator access →</Link>
+            <Link to="/apply-system-admin" className="auth-link auth-link-purple">
+              Apply for System Administrator access →
+            </Link>
           </p>
           <p>
-            Already have an account? <Link to="/login">Sign in</Link>
+            Already registered?{' '}
+            <Link to="/login" className="auth-link auth-link-green">
+              Sign in
+            </Link>
           </p>
         </div>
       </section>

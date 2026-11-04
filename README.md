@@ -104,7 +104,7 @@ lab-resource-platform/
 
 ## Database Migrations (Flyway)
 
-The database schema is managed via Flyway migrations located in `backend/lab-resource-platform/src/main/resources/db/migration/`:
+The database schema is managed via Flyway migrations located in `backend/lab-resource-platform`:
 
 - `V1__initial_schema.sql`: Core schema for users, roles, institutions, equipment, bookings, maintenance, and utilization.
 - `V2__add_departments_and_booking_audit.sql`: Department entity and immutable booking audit log table.

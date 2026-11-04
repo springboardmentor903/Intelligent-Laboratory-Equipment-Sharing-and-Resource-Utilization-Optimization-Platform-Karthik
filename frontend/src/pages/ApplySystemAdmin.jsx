@@ -133,7 +133,9 @@ export default function ApplySystemAdmin() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-field">
-            <label htmlFor="sys-fullname">Full Name *</label>
+            <label htmlFor="sys-fullname">
+              Full Name <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <input
               id="sys-fullname"
               name="fullName"
@@ -161,7 +163,9 @@ export default function ApplySystemAdmin() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="sys-email">Official Email address *</label>
+            <label htmlFor="sys-email">
+              Official Email address <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <input
               id="sys-email"
               name="email"
@@ -176,7 +180,9 @@ export default function ApplySystemAdmin() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="sys-password">Password *</label>
+            <label htmlFor="sys-password">
+              Password <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <div className="password-input-wrapper">
               <input
                 id="sys-password"
@@ -203,7 +209,9 @@ export default function ApplySystemAdmin() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="sys-confirm">Confirm password *</label>
+            <label htmlFor="sys-confirm">
+              Confirm password <span className="required-indicator" aria-hidden="true">*</span>
+            </label>
             <input
               id="sys-confirm"
               name="confirmPassword"
@@ -221,21 +229,25 @@ export default function ApplySystemAdmin() {
 
           <button
             type="submit"
-            className="button button-primary"
-            style={{ width: '100%', marginTop: '0.5rem' }}
+            className="button button-primary register-submit-btn"
             disabled={submitting}
           >
             {submitting ? 'Submitting application…' : 'Submit System Admin Application'}
           </button>
         </form>
 
-        <div className="auth-footer" style={{ marginTop: '1.25rem' }}>
+        <div className="auth-footer">
           <p>
-            Looking for regular user registration?{' '}
-            <Link to="/register">Register here</Link>
+            Looking to register as a student or faculty member?{' '}
+            <Link to="/register" className="auth-link auth-link-blue">
+              Individual user registration
+            </Link>
           </p>
           <p>
-            Already have an account? <Link to="/login">Sign in</Link>
+            Already registered?{' '}
+            <Link to="/login" className="auth-link auth-link-green">
+              Sign in
+            </Link>
           </p>
         </div>
       </section>

@@ -1,4 +1,3 @@
-
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import MainLayout from './layouts/MainLayout'
@@ -11,7 +10,9 @@ import ApplySystemAdmin from './pages/ApplySystemAdmin'
 import Dashboard from './pages/Dashboard'
 import Equipment from './pages/Equipment'
 import Bookings from './pages/Bookings'
+import BookingDetails from './pages/BookingDetails'
 import Utilization from './pages/Utilization'
+import Monitoring from './pages/Monitoring'
 import Maintenance from './pages/Maintenance'
 import NotFound from './pages/NotFound'
 import PasswordReset from './pages/PasswordReset'
@@ -34,12 +35,14 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/equipment" element={<Equipment />} />
           <Route path="/bookings" element={<Bookings />} />
+          <Route path="/bookings/:id" element={<BookingDetails />} />
           <Route path="/booking-calendar" element={
             <Suspense fallback={<div className="module-state" role="status">Loading calendar…</div>}>
               <BookingCalendar />
             </Suspense>
           } />
           <Route path="/utilization" element={<Utilization />} />
+          <Route path="/monitoring" element={<Monitoring />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/profile" element={<Profile />} />
         </Route>

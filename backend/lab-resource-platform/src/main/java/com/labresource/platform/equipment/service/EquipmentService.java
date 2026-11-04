@@ -9,6 +9,8 @@ import com.labresource.platform.institution.repository.InstitutionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.labresource.platform.equipment.event.EquipmentStatusChangedEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +36,7 @@ public class EquipmentService {
     private final InstitutionRepository institutionRepository;
     private final DepartmentRepository departmentRepository;
     private final EquipmentSearchService searchService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public EquipmentService(
             EquipmentRepository equipmentRepository,
@@ -48,16 +51,26 @@ public class EquipmentService {
         this(equipmentRepository, institutionRepository, departmentRepository, null);
     }
 
+    public EquipmentService(
+            EquipmentRepository equipmentRepository,
+            InstitutionRepository institutionRepository,
+            DepartmentRepository departmentRepository,
+            EquipmentSearchService searchService) {
+        this(equipmentRepository, institutionRepository, departmentRepository, searchService, null);
+    }
+
     @Autowired
     public EquipmentService(
             EquipmentRepository equipmentRepository,
             InstitutionRepository institutionRepository,
-            @Autowired(required = false) DepartmentRepository departmentRepository,
-            @Autowired(required = false) EquipmentSearchService searchService) {
+            DepartmentRepository departmentRepository,
+            EquipmentSearchService searchService,
+            ApplicationEventPublisher eventPublisher) {
         this.equipmentRepository = equipmentRepository;
         this.institutionRepository = institutionRepository;
         this.departmentRepository = departmentRepository;
         this.searchService = searchService;
+        this.eventPublisher = eventPublisher;
     }
 
     public List<Equipment> getAllEquipment() {
@@ -174,7 +187,11 @@ public class EquipmentService {
             }
         }
 
-        normalizeInventoryFields(equipment, true);
+        normalizeInventoryFields(equipment, true, null);
+        if (!"AVAILABLE".equals(equipment.getStatus())) {
+            throw new IllegalArgumentException(
+                    "New equipment must start as AVAILABLE. Booking and maintenance workflows manage later status changes.");
+        }
 
         if (equipment.getQuantity() == null
                 || equipment.getQuantity() < 1) {
@@ -191,6 +208,7 @@ public class EquipmentService {
         equipment.setCreatedAt(java.time.LocalDateTime.now());
 
         Equipment saved = equipmentRepository.save(equipment);
+        publishEquipmentChange(saved.getId());
         if (searchService != null) {
             searchService.indexEquipment(saved);
         }
@@ -201,7 +219,11 @@ public class EquipmentService {
     public Equipment updateEquipment(Long id, Equipment updatedEquipment) {
         Equipment existing = getEquipmentById(id);
 
-        normalizeInventoryFields(updatedEquipment, false);
+        normalizeInventoryFields(updatedEquipment, false, id);
+
+        if (updatedEquipment.getStatus() != null && !updatedEquipment.getStatus().isBlank()) {
+            validateManualStatusTransition(existing.getStatus(), updatedEquipment.getStatus());
+        }
 
         if (updatedEquipment.getQuantity() == null
                 || updatedEquipment.getQuantity() < 1) {
@@ -236,6 +258,9 @@ public class EquipmentService {
         }
 
         existing.setName(updatedEquipment.getName().trim());
+        if (updatedEquipment.getAssetTag() != null) {
+            existing.setAssetTag(updatedEquipment.getAssetTag());
+        }
         existing.setCategory(updatedEquipment.getCategory());
         existing.setDescription(updatedEquipment.getDescription());
         existing.setInstitutionId(updatedEquipment.getInstitutionId());
@@ -249,13 +274,14 @@ public class EquipmentService {
         }
 
         Equipment saved = equipmentRepository.save(existing);
+        publishEquipmentChange(saved.getId());
         if (searchService != null) {
             searchService.indexEquipment(saved);
         }
         return saved;
     }
 
-    private void normalizeInventoryFields(Equipment equipment, boolean creating) {
+    private void normalizeInventoryFields(Equipment equipment, boolean creating, Long existingId) {
         if (equipment.getName() == null || equipment.getName().isBlank()) {
             throw new IllegalArgumentException("Equipment name is required.");
         }
@@ -267,6 +293,17 @@ public class EquipmentService {
         equipment.setCategory(trimAndCheck(equipment.getCategory(), 100, "category"));
         equipment.setDescription(trimAndCheck(equipment.getDescription(), 500, "description"));
         equipment.setLabLocation(trimAndCheck(equipment.getLabLocation(), 150, "lab location"));
+        equipment.setAssetTag(trimAndCheck(equipment.getAssetTag(), 100, "asset tag"));
+
+        if (equipment.getAssetTag() != null) {
+            boolean duplicate = creating
+                    ? equipmentRepository.existsByAssetTagIgnoreCase(equipment.getAssetTag())
+                    : equipmentRepository.existsByAssetTagIgnoreCaseAndIdNot(
+                            equipment.getAssetTag(), existingId);
+            if (duplicate) {
+                throw new IllegalArgumentException("Equipment asset tag is already in use.");
+            }
+        }
 
         if (creating && (equipment.getStatus() == null || equipment.getStatus().isBlank())) {
             equipment.setStatus("AVAILABLE");
@@ -281,6 +318,25 @@ public class EquipmentService {
             throw new IllegalArgumentException("Invalid equipment status: " + status);
         }
         return normalized;
+    }
+
+    private void validateManualStatusTransition(String currentStatus, String requestedStatus) {
+        String current = normalizeStatus(currentStatus == null ? "AVAILABLE" : currentStatus);
+        String requested = normalizeStatus(requestedStatus);
+        if (current.equals(requested)) return;
+        if ("RETIRED".equals(current)) {
+            throw new IllegalArgumentException("Retired equipment cannot be reactivated or change status.");
+        }
+        if ("BOOKED".equals(requested)) {
+            throw new IllegalArgumentException("BOOKED status is set by booking check-in and cannot be set manually.");
+        }
+        if ("BOOKED".equals(current) && !"RETIRED".equals(requested)) {
+            throw new IllegalArgumentException(
+                    "Equipment in BOOKED status can only be changed by the booking workflow or retired.");
+        }
+        if (!Set.of("AVAILABLE", "UNDER_MAINTENANCE", "OUT_OF_SERVICE", "RETIRED").contains(requested)) {
+            throw new IllegalArgumentException("Invalid equipment status transition.");
+        }
     }
 
     private String trimAndCheck(String value, int maxLength, String fieldName) {
@@ -320,6 +376,12 @@ public class EquipmentService {
         return normalized;
     }
 
+    private void publishEquipmentChange(Long equipmentId) {
+        if (eventPublisher != null && equipmentId != null) {
+            eventPublisher.publishEvent(new EquipmentStatusChangedEvent(equipmentId));
+        }
+    }
+
     private Set<String> normalizeTags(Set<String> tags) {
         if (tags == null) {
             return new LinkedHashSet<>();
@@ -348,9 +410,12 @@ public class EquipmentService {
     @Transactional
     public void deleteEquipment(Long id) {
         Equipment equipment = getEquipmentById(id);
-        equipmentRepository.delete(equipment);
+        if ("RETIRED".equalsIgnoreCase(equipment.getStatus())) return;
+        equipment.setStatus("RETIRED");
+        Equipment retired = equipmentRepository.save(equipment);
+        publishEquipmentChange(retired.getId());
         if (searchService != null) {
-            searchService.deleteEquipment(id);
+            searchService.indexEquipment(retired);
         }
     }
 }

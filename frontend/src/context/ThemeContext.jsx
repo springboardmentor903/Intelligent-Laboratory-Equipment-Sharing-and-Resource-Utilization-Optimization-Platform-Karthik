@@ -1,4 +1,3 @@
-
 import {
   createContext,
   useCallback,
@@ -11,6 +10,13 @@ const ThemeContext = createContext(null)
 
 function getInitialTheme() {
   try {
+    if (typeof window !== 'undefined') {
+      const urlTheme = new URLSearchParams(window.location.search).get('theme')
+      if (urlTheme === 'light' || urlTheme === 'dark') {
+        return urlTheme
+      }
+    }
+
     const savedTheme = localStorage.getItem('lab-resource-theme')
 
     if (savedTheme === 'light' || savedTheme === 'dark') {

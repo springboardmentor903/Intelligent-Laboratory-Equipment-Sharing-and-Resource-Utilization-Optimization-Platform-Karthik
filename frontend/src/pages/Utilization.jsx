@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import UtilizationAnalyticsDashboard from '../components/analytics/UtilizationAnalyticsDashboard'
 import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -25,6 +27,9 @@ function inputDateTime(value) {
 
 export default function Utilization() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'analytics'
+  const setTab = (tab) => setSearchParams({ tab })
   const permissions = useMemo(() => getUtilizationPermissions(user?.roles), [user?.roles])
   const [records, setRecords] = useState([])
   const [summary, setSummary] = useState(null)
@@ -333,6 +338,29 @@ export default function Utilization() {
       {mutationSuccess && <p className="auth-success" role="status">{mutationSuccess}</p>}
       {mutationError && <p className="auth-alert" role="alert">{mutationError}</p>}
 
+      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+        <button
+          type="button"
+          className={activeTab === 'analytics' ? 'primary-button' : 'secondary-button'}
+          style={{ padding: '8px 16px', fontSize: '0.88rem' }}
+          onClick={() => setTab('analytics')}
+        >
+          📊 Analytics & Heatmap
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'records' ? 'primary-button' : 'secondary-button'}
+          style={{ padding: '8px 16px', fontSize: '0.88rem' }}
+          onClick={() => setTab('records')}
+        >
+          ◷ Recorded Usage Logs
+        </button>
+      </div>
+
+      {activeTab === 'analytics' ? (
+        <UtilizationAnalyticsDashboard equipmentList={equipment} />
+      ) : (<>
+
       <div className="utilization-summary-grid">
         <article className="app-surface utilization-stat"><span className="utilization-stat-icon">▤</span><p>Total records</p><h2>{summaryLoading ? '…' : summary ? totalRecords : 'Unavailable'}</h2><span className="muted-text">Records visible to your account</span></article>
         <article className="app-surface utilization-stat"><span className="utilization-stat-icon">◷</span><p>Total usage hours</p><h2>{summaryLoading ? '…' : summary ? totalHours : 'Unavailable'}</h2><span className="muted-text">Based on visible saved records</span></article>
@@ -391,6 +419,7 @@ export default function Utilization() {
             : filteredRecords.length === 0 ? <div className="utilization-state"><span className="utilization-empty-icon">◷</span><h3>No utilization records found</h3><p className="muted-text">Records will appear here when usage data has been saved.</p></div>
               : <div className="utilization-table-wrapper"><table className="utilization-table"><thead><tr><th>Record ID</th><th>Equipment ID</th><th>User ID</th><th>Booking ID</th><th>Start time</th><th>End time</th><th>Usage hours</th><th>Notes</th>{(permissions.canEdit || permissions.canDelete) && <th>Actions</th>}</tr></thead><tbody>{filteredRecords.map((record) => <tr key={record.id}><td>#{record.id}</td><td>{record.equipmentId ?? '—'}</td><td>{record.userId ?? '—'}</td><td>{record.bookingId ?? '—'}</td><td>{formatDate(record.startTime)}</td><td>{formatDate(record.endTime)}</td><td><strong>{record.actualHours ?? '—'}</strong></td><td>{record.notes || '—'}</td>{(permissions.canEdit || permissions.canDelete) && <td>{permissions.canEdit && <button type="button" className="secondary-button" disabled={mutationLoading || deletingId != null} onClick={() => beginEdit(record)}>Edit</button>}{' '}{permissions.canDelete && <button type="button" className="secondary-button" disabled={mutationLoading || deletingId != null} onClick={() => deleteRecord(record)}>{deletingId === record.id ? 'Deleting…' : 'Delete'}</button>}</td>}</tr>)}</tbody></table></div>}
       </section>
+      </>)}
     </section>
   )
 }

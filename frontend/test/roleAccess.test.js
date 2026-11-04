@@ -16,6 +16,7 @@ const commonNavigation = [
   '/bookings',
   '/booking-calendar',
   '/utilization',
+  '/monitoring',
   '/maintenance',
   '/profile',
 ]
@@ -84,6 +85,8 @@ test('dashboard uses own bookings and suppresses researcher maintenance summary'
       role === 'SYSTEM_ADMIN' ? 'platform' : 'institution',
       `${role} booking scope`,
     )
-    assert.equal(canRequestBooking([role]), false)
+    assert.equal(canRequestBooking([role]), role === 'DEPARTMENT_HEAD')
   }
+  assert.equal(canRequestBooking(['LAB_TECHNICIAN']), false)
+  assert.equal(canRequestBooking(['INSTITUTION_ADMIN']), false)
 })
