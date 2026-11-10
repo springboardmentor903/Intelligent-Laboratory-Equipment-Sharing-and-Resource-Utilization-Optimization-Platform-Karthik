@@ -1,0 +1,12 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Lab Resource Platform Backend",
+  "type": "module",
+  "scripts": {
+    "start": "node run-server.js",
+    "dev": "node run-server.js",
+    "server": "node run-server.js"
+  }
+}
+
