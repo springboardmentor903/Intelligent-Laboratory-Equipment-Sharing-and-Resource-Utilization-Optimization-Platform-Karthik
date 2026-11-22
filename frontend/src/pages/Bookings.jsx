@@ -614,13 +614,22 @@ export default function Bookings() {
         </div>
 
         {externalAgreement && (
-          <div className="auth-success" role="note">
-            <strong>Shared access agreement</strong>
-            <p>Valid {formatDate(externalAgreement.agreement.startDate)} to {formatDate(externalAgreement.agreement.endDate)} · Fee ₹{externalAgreement.agreement.feePerHour}/hour</p>
+          <div className="shared-agreement-banner" role="note">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <strong style={{ fontSize: '15px' }}>🤝 Shared Access Agreement Active</strong>
+              <span className="sharing-badge-active">Agreement #{externalAgreement.agreement.id}</span>
+            </div>
+            <p style={{ margin: '4px 0', fontSize: '13.5px' }}>
+              <strong>Validity:</strong> {formatDate(externalAgreement.agreement.startDate)} to {formatDate(externalAgreement.agreement.endDate)} · <strong>Rate:</strong> ₹{externalAgreement.agreement.feePerHour}/hour
+            </p>
             {externalAgreement.agreement.allowedStartTime && (
-              <p>Allowed hours: {externalAgreement.agreement.allowedStartTime}–{externalAgreement.agreement.allowedEndTime}</p>
+              <p style={{ margin: '4px 0', fontSize: '13.5px' }}>
+                <strong>Allowed hours:</strong> {externalAgreement.agreement.allowedStartTime}–{externalAgreement.agreement.allowedEndTime}
+              </p>
             )}
-            <p>Minimum notice: {externalAgreement.listing?.minimumNoticeHours ?? 0} hours · Maximum duration: {externalAgreement.listing?.maximumBookingHours ?? '—'} hours.</p>
+            <p style={{ margin: '4px 0', fontSize: '13.5px' }}>
+              <strong>Notice required:</strong> {externalAgreement.listing?.minimumNoticeHours ?? 0} hours · <strong>Max duration:</strong> {externalAgreement.listing?.maximumBookingHours ?? '—'} hours · <strong>Allocation:</strong> {externalAgreement.listing?.externalSharePercentage ?? '—'}%
+            </p>
           </div>
         )}
 

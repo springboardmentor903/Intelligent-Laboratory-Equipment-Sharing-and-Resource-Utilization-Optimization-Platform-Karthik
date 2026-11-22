@@ -13,7 +13,16 @@ function BarSeries({ rows, firstKey, secondKey, firstLabel, secondLabel, format 
   const peak = Math.max(1, ...rows.flatMap(row => [Number(row[firstKey] || 0), Number(row[secondKey] || 0)]))
   if (!rows.length) return <p className="muted-text">No trend data for this period.</p>
   return <>
-    <div className="booking-time-grid" aria-label="Chart legend"><span>🟦 {firstLabel}</span><span>🟧 {secondLabel}</span></div>
+    <div className="analytics-chart-legend" aria-label="Chart legend">
+      <span className="legend-chip">
+        <span className="legend-color-dot" style={{ background: '#2563eb' }} aria-hidden="true"></span>
+        {firstLabel}
+      </span>
+      <span className="legend-chip">
+        <span className="legend-color-dot" style={{ background: '#b45309' }} aria-hidden="true"></span>
+        {secondLabel}
+      </span>
+    </div>
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, minHeight: 190, overflowX: 'auto', padding: '16px 4px 4px' }}>
       {rows.map(row => <div key={row.periodStart} title={`${row.periodStart}: ${firstLabel} ${format(row[firstKey])}, ${secondLabel} ${format(row[secondKey])}`} style={{ minWidth: 50, flex: 1, textAlign: 'center' }}>
         <div style={{ height: 150, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 4 }}>
@@ -25,7 +34,7 @@ function BarSeries({ rows, firstKey, secondKey, firstLabel, secondLabel, format 
 }
 
 function Pager({ page, pages, onChange, label }) {
-  return <nav className="booking-time-grid" aria-label={`${label} pages`}>
+  return <nav className="pagination-bar" aria-label={`${label} pages`}>
     <button type="button" className="button-secondary" disabled={page <= 0} onClick={() => onChange(page - 1)}>Previous</button>
     <span>Page {page + 1} of {Math.max(1, pages)}</span>
     <button type="button" className="button-secondary" disabled={page + 1 >= pages} onClick={() => onChange(page + 1)}>Next</button>
@@ -139,28 +148,275 @@ export default function SharingAnalytics() {
   return <main className="module-page">
     <header className="module-page-heading"><div><span className="eyebrow">MILESTONE 2 · SESSION 5</span><h1>{reportPartner ? 'Partnership report' : 'Sharing analytics'}</h1><p>Actual shared usage and agreement performance for the selected period.</p></div></header>
     {error && <div className="module-alert" role="alert">{error} <button type="button" className="button-secondary" onClick={() => void load()}>Retry</button></div>}
-    <section className="booking-form-card"><div className="booking-time-grid">
-      {isSystemAdmin && <label>Institution<select value={institutionId} onChange={event => setFilter({ institutionId: event.target.value, partnerInstitutionId: '', partnerPage: 0, equipmentPage: 0 })}><option value="">Select institution</option>{institutions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
-      <label>Period<select value={params.get('period') || '90'} onChange={event => choosePeriod(event.target.value)}><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="custom">Custom</option></select></label>
-      <label>From<input type="date" value={from} max={to} onChange={event => setFilter({ from: event.target.value, period: 'custom', partnerPage: 0, equipmentPage: 0 })} /></label>
-      <label>To<input type="date" value={to} min={from} max={today} onChange={event => setFilter({ to: event.target.value, period: 'custom', partnerPage: 0, equipmentPage: 0 })} /></label>
-      {!reportPartner && <label>Trend grouping<select value={grouping} onChange={event => setFilter({ grouping: event.target.value })}><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select></label>}
-    </div></section>
+    <section className="booking-form-card">
+      <div className="module-section-title">
+        <div className="module-section-icon" aria-hidden="true">📊</div>
+        <div>
+          <h2>Analytics Filters</h2>
+          <p>Filter sharing metrics by institution, reporting period, or trend grouping.</p>
+        </div>
+      </div>
+      <div className="sharing-filter-panel" style={{ marginTop: 12 }}>
+        {isSystemAdmin && (
+          <div className="sharing-filter-field">
+            <label htmlFor="analytics-institution-select">Institution</label>
+            <select
+              id="analytics-institution-select"
+              value={institutionId}
+              onChange={event => setFilter({ institutionId: event.target.value, partnerInstitutionId: '', partnerPage: 0, equipmentPage: 0 })}
+            >
+              <option value="">Select institution</option>
+              {institutions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="sharing-filter-field">
+          <label htmlFor="analytics-period-select">Period</label>
+          <select
+            id="analytics-period-select"
+            value={params.get('period') || '90'}
+            onChange={event => choosePeriod(event.target.value)}
+          >
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="365">Last 12 months</option>
+            <option value="custom">Custom range</option>
+          </select>
+        </div>
+        <div className="sharing-filter-field">
+          <label htmlFor="analytics-from-date">From</label>
+          <input
+            id="analytics-from-date"
+            type="date"
+            value={from}
+            max={to}
+            onChange={event => setFilter({ from: event.target.value, period: 'custom', partnerPage: 0, equipmentPage: 0 })}
+          />
+        </div>
+        <div className="sharing-filter-field">
+          <label htmlFor="analytics-to-date">To</label>
+          <input
+            id="analytics-to-date"
+            type="date"
+            value={to}
+            min={from}
+            max={today}
+            onChange={event => setFilter({ to: event.target.value, period: 'custom', partnerPage: 0, equipmentPage: 0 })}
+          />
+        </div>
+        {!reportPartner && (
+          <div className="sharing-filter-field">
+            <label htmlFor="analytics-grouping-select">Trend grouping</label>
+            <select
+              id="analytics-grouping-select"
+              value={grouping}
+              onChange={event => setFilter({ grouping: event.target.value })}
+            >
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+            </select>
+          </div>
+        )}
+      </div>
+    </section>
     {!institutionId && isSystemAdmin && <p className="auth-alert" role="status">Select an institution to load its sharing analytics.</p>}
     {reportPartner && report && <>
-      <Link className="button-secondary" to={`/sharing-analytics${reportQuery ? `?${reportQuery}` : ''}`}>← Back to partners</Link>
-      <section className="equipment-grid" style={{ marginTop: 16 }}>{[[report.firstToSecond, `${report.firstInstitution} → ${report.secondInstitution}`], [report.secondToFirst, `${report.secondInstitution} → ${report.firstInstitution}`]].map(([direction, label]) => <article className="booking-form-card" key={label}><h2>{label}</h2><p>Hours provided: {fmtHours(direction.hoursProvided)} · Hours used: {fmtHours(direction.hoursUsed)}</p><p>Fees earned: {formatAmount(direction.feesEarned)} · Fees owed: {formatAmount(direction.feesOwed)}</p><p>Balance: {formatAmount(direction.balance)} · Bookings: {direction.bookingCount} · No-show rate: {Number(direction.noShowRate || 0).toFixed(2)}%</p></article>)}</section>
-      <section className="booking-form-card"><h2>Balance for {report.firstInstitution}</h2><strong>{formatAmount(report.balanceForFirstInstitution)}</strong><p>{report.bookingCount} bookings · {Number(report.noShowRate || 0).toFixed(2)}% no-show rate</p></section>
-      <section className="booking-form-card"><h2>Monthly sharing trends</h2><BarSeries rows={report.monthlyTrends || []} firstKey="hoursProvided" secondKey="hoursUsed" firstLabel="Hours provided" secondLabel="Hours used" /></section>
-      <section className="booking-form-card"><h2>Agreements</h2>{!report.agreements?.length ? <p>No agreements for this institution pair.</p> : <div className="utilization-table-wrapper"><table className="utilization-table"><thead><tr><th>Equipment</th><th>Owner</th><th>Partner</th><th>Start</th><th>End</th><th>Fee/hour</th><th>Status</th></tr></thead><tbody>{report.agreements.map(item => <tr key={item.agreementId}><td>{item.equipmentName || `#${item.equipmentId}`}</td><td>{item.ownerInstitution}</td><td>{item.partnerInstitution}</td><td>{formatSharedTime(item.startDate)}</td><td>{formatSharedTime(item.endDate)}</td><td>{formatAmount(item.feePerHour)}</td><td>{item.status}</td></tr>)}</tbody></table></div>}</section>
+      <div style={{ marginBottom: 16 }}>
+        <Link className="button-secondary" to={`/sharing-analytics${reportQuery ? `?${reportQuery}` : ''}`}>← Back to partners</Link>
+      </div>
+      <section className="equipment-grid">
+        {[[report.firstToSecond, `${report.firstInstitution} → ${report.secondInstitution}`], [report.secondToFirst, `${report.secondInstitution} → ${report.firstInstitution}`]].map(([direction, label]) => (
+          <article className="booking-form-card" key={label}>
+            <h2>{label}</h2>
+            <div className="sharing-meta-list" style={{ marginTop: 10 }}>
+              <div className="sharing-meta-item">
+                <span className="sharing-meta-label">Hours provided:</span>
+                <span className="sharing-meta-value">{fmtHours(direction.hoursProvided)}</span>
+              </div>
+              <div className="sharing-meta-item">
+                <span className="sharing-meta-label">Hours used:</span>
+                <span className="sharing-meta-value">{fmtHours(direction.hoursUsed)}</span>
+              </div>
+              <div className="sharing-meta-item">
+                <span className="sharing-meta-label">Fees earned:</span>
+                <span className="sharing-meta-value">{formatAmount(direction.feesEarned)}</span>
+              </div>
+              <div className="sharing-meta-item">
+                <span className="sharing-meta-label">Fees owed:</span>
+                <span className="sharing-meta-value">{formatAmount(direction.feesOwed)}</span>
+              </div>
+              <div className="sharing-meta-item">
+                <span className="sharing-meta-label">Net balance:</span>
+                <span className={`sharing-meta-value ${Number(direction.balance) < 0 ? 'balance-cell-negative' : 'balance-cell-positive'}`}>{formatAmount(direction.balance)}</span>
+              </div>
+              <div className="sharing-meta-item">
+                <span className="sharing-meta-label">Bookings / No-show:</span>
+                <span className="sharing-meta-value">{direction.bookingCount} bookings · {Number(direction.noShowRate || 0).toFixed(2)}% no-show</span>
+              </div>
+            </div>
+          </article>
+        ))}
+      </section>
+      <section className="booking-form-card">
+        <h2>Balance for {report.firstInstitution}</h2>
+        <div style={{ fontSize: '24px', fontWeight: 700, margin: '8px 0', color: Number(report.balanceForFirstInstitution) < 0 ? '#dc2626' : '#16a34a' }}>
+          {formatAmount(report.balanceForFirstInstitution)}
+        </div>
+        <p className="muted-text">{report.bookingCount} bookings · {Number(report.noShowRate || 0).toFixed(2)}% overall no-show rate</p>
+      </section>
+      <section className="booking-form-card">
+        <h2>Monthly sharing trends</h2>
+        <BarSeries rows={report.monthlyTrends || []} firstKey="hoursProvided" secondKey="hoursUsed" firstLabel="Hours provided" secondLabel="Hours used" />
+      </section>
+      <section className="booking-form-card">
+        <h2>Agreements</h2>
+        {!report.agreements?.length ? (
+          <div className="sharing-empty-state"><p>No agreements found for this institution pair.</p></div>
+        ) : (
+          <div className="utilization-table-wrapper">
+            <table className="utilization-table">
+              <thead>
+                <tr>
+                  <th>Equipment</th>
+                  <th>Owner</th>
+                  <th>Partner</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Fee/hour</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.agreements.map(item => (
+                  <tr key={item.agreementId}>
+                    <td><strong>{item.equipmentName || `#${item.equipmentId}`}</strong></td>
+                    <td>{item.ownerInstitution}</td>
+                    <td>{item.partnerInstitution}</td>
+                    <td>{formatSharedTime(item.startDate)}</td>
+                    <td>{formatSharedTime(item.endDate)}</td>
+                    <td>{formatAmount(item.feePerHour)}</td>
+                    <td><span className={item.status === 'ACTIVE' ? 'sharing-badge-active' : 'sharing-badge-pending'}>{item.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </>}
     {!reportPartner && summary && <>
       <section className="utilization-summary-grid">
-        {[["Hours provided", fmtHours(summary.hoursProvided)], ["Hours used", fmtHours(summary.hoursUsed)], ["Fees earned", formatAmount(summary.feesEarned)], ["Fees owed", formatAmount(summary.feesOwed)], ["Expected fees", formatAmount(summary.expectedFees)], ["Agreement bookings", summary.bookingCount], ["No-show rate", `${Number(summary.noShowRate || 0).toFixed(2)}%`], ["Active agreements", summary.activeAgreements], ["Partners", summary.partnerCount], ["Expiring in 30 days", summary.agreementsExpiringWithin30Days], ["External share of usage", `${Number(summary.externalShareOfUsage || 0).toFixed(2)}%`]].map(([label, value]) => <article className="app-surface utilization-stat" key={label}><p>{label}</p><h2>{value}</h2></article>)}
+        {[["Hours provided", fmtHours(summary.hoursProvided)], ["Hours used", fmtHours(summary.hoursUsed)], ["Fees earned", formatAmount(summary.feesEarned)], ["Fees owed", formatAmount(summary.feesOwed)], ["Expected fees", formatAmount(summary.expectedFees)], ["Agreement bookings", summary.bookingCount], ["No-show rate", `${Number(summary.noShowRate || 0).toFixed(2)}%`], ["Active agreements", summary.activeAgreements], ["Partners", summary.partnerCount], ["Expiring in 30 days", summary.agreementsExpiringWithin30Days], ["External share of usage", `${Number(summary.externalShareOfUsage || 0).toFixed(2)}%`]].map(([label, value]) => (
+          <article className="app-surface utilization-stat" key={label}>
+            <p>{label}</p>
+            <h2>{value}</h2>
+          </article>
+        ))}
       </section>
-      <section className="equipment-grid"><article className="booking-form-card"><h2>Sharing hours</h2><BarSeries rows={trends} firstKey="hoursProvided" secondKey="hoursUsed" firstLabel="Hours provided" secondLabel="Hours used" /></article><article className="booking-form-card"><h2>Sharing fees</h2><BarSeries rows={trends} firstKey="feesEarned" secondKey="feesOwed" firstLabel="Fees earned" secondLabel="Fees owed" format={formatAmount} /></article></section>
-      <section className="booking-form-card"><h2>Partners</h2>{!partners.content?.length ? <p>No partner activity in this period.</p> : <div className="utilization-table-wrapper"><table className="utilization-table"><thead><tr><th>Partner</th>{[['hoursProvided','Hours provided'],['hoursUsed','Hours used'],['feesEarned','Fees earned'],['feesOwed','Fees owed'],['balance','Balance']].map(([field,label])=><th key={field}><button type="button" className="button-secondary" onClick={()=>setSort(field)}>{label}{partnerSort===field?(partnerDirection==='asc'?' ↑':' ↓'):''}</button></th>)}<th>Agreements</th><th>Report</th></tr></thead><tbody>{partners.content.map(row=><tr key={row.partnerInstitutionId}><td>{row.partnerInstitution}</td><td>{fmtHours(row.hoursProvided)}</td><td>{fmtHours(row.hoursUsed)}</td><td>{formatAmount(row.feesEarned)}</td><td>{formatAmount(row.feesOwed)}</td><td style={{ color: Number(row.balance) < 0 ? '#b91c1c' : '#15803d' }}>{Number(row.balance) > 0 ? '+' : ''}{formatAmount(row.balance)}</td><td>{row.agreementCount}</td><td><Link to={`/sharing-analytics?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(query)), partnerInstitutionId: row.partnerInstitutionId })}`}>View report</Link></td></tr>)}</tbody></table></div>}<Pager page={partnerPage} pages={partners.totalPages || 0} label="Partner" onChange={value=>setPage('partnerPage',value)} /></section>
-      <section className="booking-form-card"><h2>Most shared equipment</h2>{!equipment.content?.length ? <p>No shared equipment usage in this period.</p> : <div className="utilization-table-wrapper"><table className="utilization-table"><thead><tr><th><button className="button-secondary" type="button" onClick={()=>setEquipmentSort('equipmentName')}>Equipment{equipmentSort==='equipmentName'?(equipmentDirection==='asc'?' ↑':' ↓'):''}</button></th><th>Asset tag</th><th><button className="button-secondary" type="button" onClick={()=>setEquipmentSort('providedMinutes')}>Provided minutes{equipmentSort==='providedMinutes'?(equipmentDirection==='asc'?' ↑':' ↓'):''}</button></th><th><button className="button-secondary" type="button" onClick={()=>setEquipmentSort('feesEarned')}>Fees earned{equipmentSort==='feesEarned'?(equipmentDirection==='asc'?' ↑':' ↓'):''}</button></th><th><button className="button-secondary" type="button" onClick={()=>setEquipmentSort('externalSharePercentage')}>External share{equipmentSort==='externalSharePercentage'?(equipmentDirection==='asc'?' ↑':' ↓'):''}</button></th></tr></thead><tbody>{equipment.content.map(row=><tr key={row.equipmentId}><td>{row.equipmentName}</td><td>{row.assetTag || '—'}</td><td>{row.providedMinutes}</td><td>{formatAmount(row.feesEarned)}</td><td>{Number(row.externalSharePercentage || 0).toFixed(2)}%</td></tr>)}</tbody></table></div>}<Pager page={equipmentPage} pages={equipment.totalPages || 0} label="Equipment" onChange={value=>setPage('equipmentPage',value)} /></section>
+      <section className="equipment-grid">
+        <article className="booking-form-card">
+          <h2>Sharing hours</h2>
+          <BarSeries rows={trends} firstKey="hoursProvided" secondKey="hoursUsed" firstLabel="Hours provided" secondLabel="Hours used" />
+        </article>
+        <article className="booking-form-card">
+          <h2>Sharing fees</h2>
+          <BarSeries rows={trends} firstKey="feesEarned" secondKey="feesOwed" firstLabel="Fees earned" secondLabel="Fees owed" format={formatAmount} />
+        </article>
+      </section>
+      <section className="booking-form-card">
+        <h2>Partners</h2>
+        {!partners.content?.length ? (
+          <div className="sharing-empty-state"><p>No partner activity in this period.</p></div>
+        ) : (
+          <div className="utilization-table-wrapper">
+            <table className="utilization-table">
+              <thead>
+                <tr>
+                  <th>Partner</th>
+                  {[['hoursProvided','Hours provided'],['hoursUsed','Hours used'],['feesEarned','Fees earned'],['feesOwed','Fees owed'],['balance','Balance']].map(([field,label])=>(
+                    <th key={field}>
+                      <button type="button" className="analytics-sort-button" onClick={()=>setSort(field)}>
+                        {label}{partnerSort===field?(partnerDirection==='asc'?' ↑':' ↓'):''}
+                      </button>
+                    </th>
+                  ))}
+                  <th>Agreements</th>
+                  <th>Report</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partners.content.map(row=>(
+                  <tr key={row.partnerInstitutionId}>
+                    <td><strong>{row.partnerInstitution}</strong></td>
+                    <td>{fmtHours(row.hoursProvided)}</td>
+                    <td>{fmtHours(row.hoursUsed)}</td>
+                    <td>{formatAmount(row.feesEarned)}</td>
+                    <td>{formatAmount(row.feesOwed)}</td>
+                    <td className={Number(row.balance) < 0 ? 'balance-cell-negative' : 'balance-cell-positive'}>
+                      {Number(row.balance) > 0 ? '+' : ''}{formatAmount(row.balance)}
+                    </td>
+                    <td>{row.agreementCount}</td>
+                    <td>
+                      <Link to={`/sharing-analytics?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(query)), partnerInstitutionId: row.partnerInstitutionId })}`}>
+                        View report →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Pager page={partnerPage} pages={partners.totalPages || 0} label="Partner" onChange={value=>setPage('partnerPage',value)} />
+      </section>
+      <section className="booking-form-card">
+        <h2>Most shared equipment</h2>
+        {!equipment.content?.length ? (
+          <div className="sharing-empty-state"><p>No shared equipment usage in this period.</p></div>
+        ) : (
+          <div className="utilization-table-wrapper">
+            <table className="utilization-table">
+              <thead>
+                <tr>
+                  <th>
+                    <button className="analytics-sort-button" type="button" onClick={()=>setEquipmentSort('equipmentName')}>
+                      Equipment{equipmentSort==='equipmentName'?(equipmentDirection==='asc'?' ↑':' ↓'):''}
+                    </button>
+                  </th>
+                  <th>Asset tag</th>
+                  <th>
+                    <button className="analytics-sort-button" type="button" onClick={()=>setEquipmentSort('providedMinutes')}>
+                      Provided minutes{equipmentSort==='providedMinutes'?(equipmentDirection==='asc'?' ↑':' ↓'):''}
+                    </button>
+                  </th>
+                  <th>
+                    <button className="analytics-sort-button" type="button" onClick={()=>setEquipmentSort('feesEarned')}>
+                      Fees earned{equipmentSort==='feesEarned'?(equipmentDirection==='asc'?' ↑':' ↓'):''}
+                    </button>
+                  </th>
+                  <th>
+                    <button className="analytics-sort-button" type="button" onClick={()=>setEquipmentSort('externalSharePercentage')}>
+                      External share{equipmentSort==='externalSharePercentage'?(equipmentDirection==='asc'?' ↑':' ↓'):''}
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {equipment.content.map(row=>(
+                  <tr key={row.equipmentId}>
+                    <td><strong>{row.equipmentName}</strong></td>
+                    <td>{row.assetTag || '—'}</td>
+                    <td>{row.providedMinutes}</td>
+                    <td>{formatAmount(row.feesEarned)}</td>
+                    <td>{Number(row.externalSharePercentage || 0).toFixed(2)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Pager page={equipmentPage} pages={equipment.totalPages || 0} label="Equipment" onChange={value=>setPage('equipmentPage',value)} />
+      </section>
     </>}
   </main>
 }

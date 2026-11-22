@@ -59,7 +59,7 @@ public class Equipment {
     @Column(nullable = false, length = 30)
     private String status = "AVAILABLE";
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default false")
     private Boolean shareable = false;
 
     @Column(name = "created_at", nullable = false)
