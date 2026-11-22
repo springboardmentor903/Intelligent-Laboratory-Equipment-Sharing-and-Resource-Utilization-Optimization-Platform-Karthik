@@ -18,6 +18,8 @@ import NotFound from './pages/NotFound'
 import PasswordReset from './pages/PasswordReset'
 import Profile from './pages/Profile'
 import OAuthCallback from './pages/OAuthCallback'
+import Sharing from './pages/Sharing'
+const SharingAnalytics = lazy(() => import('./pages/SharingAnalytics'))
 const BookingCalendar = lazy(() => import('./pages/BookingCalendar'))
 import { SUPPORTED_ROLES } from './access/roleAccess.js'
 
@@ -34,6 +36,7 @@ export default function App() {
         <Route element={<ProtectedRoute allowedRoles={SUPPORTED_ROLES} />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/equipment" element={<Equipment />} />
+          <Route path="/sharing" element={<Sharing />} />
           <Route path="/bookings" element={<Bookings />} />
           <Route path="/bookings/:id" element={<BookingDetails />} />
           <Route path="/booking-calendar" element={
@@ -45,6 +48,13 @@ export default function App() {
           <Route path="/monitoring" element={<Monitoring />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/profile" element={<Profile />} />
+        </Route>
+        <Route element={<ProtectedRoute allowedRoles={['INSTITUTION_ADMIN', 'SYSTEM_ADMIN']} />}>
+          <Route path="/sharing-analytics" element={
+            <Suspense fallback={<div className="module-state" role="status">Loading sharing analytics…</div>}>
+              <SharingAnalytics />
+            </Suspense>
+          } />
         </Route>
         <Route path="/password-reset" element={<PasswordReset />} />
         <Route path="/oauth/callback" element={<OAuthCallback />} />

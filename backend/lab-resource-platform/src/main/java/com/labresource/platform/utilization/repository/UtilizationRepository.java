@@ -48,4 +48,8 @@ public interface UtilizationRepository extends JpaRepository<Utilization, Long> 
             @Param("windowStart") java.time.LocalDateTime windowStart,
             @Param("windowEnd") java.time.LocalDateTime windowEnd
     );
+
+    List<Utilization> findByBookingIdIn(List<Long> bookingIds);
+
+    List<Utilization> findByEquipmentIdIn(List<Long> equipmentIds);
 }

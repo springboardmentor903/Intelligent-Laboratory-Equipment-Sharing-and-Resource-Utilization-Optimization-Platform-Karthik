@@ -25,6 +25,7 @@ export const MAINTENANCE_SUMMARY_ROLES = Object.freeze([
 
 const COMMON_NAVIGATION = Object.freeze([
   { label: 'Dashboard', to: '/dashboard' },
+  { label: 'Equipment sharing', to: '/sharing' },
   { label: 'Equipment', to: '/equipment' },
   { label: 'Bookings', to: '/bookings' },
   { label: 'Booking calendar', to: '/booking-calendar' },
@@ -32,12 +33,15 @@ const COMMON_NAVIGATION = Object.freeze([
   { label: 'Live monitoring', to: '/monitoring' },
   { label: 'Maintenance', to: '/maintenance' },
   { label: 'Profile', to: '/profile' },
+  { label: 'Sharing analytics', to: '/sharing-analytics' },
 ])
 
 // Each role has a permitted view for these existing routes. The backend
 // still applies institution and ownership scope to the returned records.
 export const ROLE_NAVIGATION = Object.freeze(Object.fromEntries(
-  SUPPORTED_ROLES.map((role) => [role, COMMON_NAVIGATION]),
+  SUPPORTED_ROLES.map((role) => [role, role === 'INSTITUTION_ADMIN' || role === 'SYSTEM_ADMIN'
+    ? COMMON_NAVIGATION
+    : COMMON_NAVIGATION.filter((item) => item.to !== '/sharing-analytics')]),
 ))
 
 export function hasValidRoles(roles) {
@@ -120,4 +124,8 @@ export const BOOKING_APPROVAL_ROLES = Object.freeze([
 
 export function canApproveBookings(roles) {
   return hasAnyRole(roles, BOOKING_APPROVAL_ROLES)
+}
+
+export function canManageSharing(roles) {
+  return hasAnyRole(roles, ['INSTITUTION_ADMIN', 'SYSTEM_ADMIN'])
 }

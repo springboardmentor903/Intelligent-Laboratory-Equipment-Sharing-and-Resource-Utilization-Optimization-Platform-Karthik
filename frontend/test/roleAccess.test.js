@@ -12,6 +12,7 @@ import {
 
 const commonNavigation = [
   '/dashboard',
+  '/sharing',
   '/equipment',
   '/bookings',
   '/booking-calendar',
@@ -20,6 +21,7 @@ const commonNavigation = [
   '/maintenance',
   '/profile',
 ]
+const analyticsNavigation = [...commonNavigation, '/sharing-analytics']
 
 test('all six supported roles receive only the routes their backend view permits', () => {
   assert.deepEqual(SUPPORTED_ROLES, [
@@ -34,7 +36,7 @@ test('all six supported roles receive only the routes their backend view permits
   for (const role of SUPPORTED_ROLES) {
     assert.deepEqual(
       getNavigationItems([role]).map(({ to }) => to),
-      commonNavigation,
+      ['INSTITUTION_ADMIN', 'SYSTEM_ADMIN'].includes(role) ? analyticsNavigation : commonNavigation,
       `${role} navigation`,
     )
   }

@@ -43,4 +43,12 @@ public interface WaitlistRepository extends JpaRepository<WaitlistEntry, Long> {
             @Param("endTime") LocalDateTime endTime,
             @Param("now") LocalDateTime now
     );
+
+    @Query("select w from WaitlistEntry w where w.equipmentId = :equipmentId and w.status = 'OFFERED' and w.expiresAt > :now and w.requestedStartTime < :endTime and w.requestedEndTime > :startTime")
+    List<WaitlistEntry> findActiveOffersOverlapping(
+            @Param("equipmentId") Long equipmentId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("now") LocalDateTime now
+    );
 }

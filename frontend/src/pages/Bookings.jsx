@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -58,10 +58,12 @@ function getErrorMessage(error, fallback) {
 
 export default function Bookings() {
   const { user } = useAuth()
+  const [queryParams] = useSearchParams()
 
   const [bookings, setBookings] = useState([])
   const [equipment, setEquipment] = useState([])
   const [form, setForm] = useState(initialForm)
+  const [externalAgreement, setExternalAgreement] = useState(null)
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -76,6 +78,17 @@ export default function Bookings() {
   const [auditLoading, setAuditLoading] = useState(false)
   const [auditError, setAuditError] = useState('')
   const actionLock = useRef(false)
+
+  useEffect(() => {
+    const equipmentId = queryParams.get('equipmentId')
+    if (equipmentId) setForm((current) => ({ ...current, equipmentId }))
+    const agreementId = queryParams.get('agreementId')
+    if (!agreementId) return
+    api.get('/api/sharing/agreements').then((response) => {
+      const match = (response.data || []).find((item) => String(item.agreement?.id) === agreementId)
+      setExternalAgreement(match || null)
+    }).catch(() => setExternalAgreement(null))
+  }, [queryParams])
 
   const [activeTab, setActiveTab] = useState('bookings')
   const [pendingCount, setPendingCount] = useState(0)
@@ -329,6 +342,32 @@ export default function Bookings() {
       return
     }
 
+    if (externalAgreement?.agreement) {
+      const agreement = externalAgreement.agreement
+      const listing = externalAgreement.listing
+      const start = new Date(form.startTime)
+      const end = new Date(form.endTime)
+      if (form.startTime < String(agreement.startDate).slice(0, 16)
+        || form.endTime > String(agreement.endDate).slice(0, 16)) {
+        setError('The booking must fall within the agreement dates.')
+        return
+      }
+      if (listing?.minimumNoticeHours != null && start.getTime() < Date.now() + listing.minimumNoticeHours * 3600000) {
+        setError(`This booking requires at least ${listing.minimumNoticeHours} hours notice.`)
+        return
+      }
+      if (listing?.maximumBookingHours != null && end.getTime() - start.getTime() > listing.maximumBookingHours * 3600000) {
+        setError(`The maximum booking duration is ${listing.maximumBookingHours} hours.`)
+        return
+      }
+      if (agreement.allowedStartTime && agreement.allowedEndTime
+        && (form.startTime.slice(11, 16) < agreement.allowedStartTime.slice(0, 5)
+          || form.endTime.slice(11, 16) > agreement.allowedEndTime.slice(0, 5))) {
+        setError('The booking is outside the agreement allowed hours.')
+        return
+      }
+    }
+
     if (
       selectedEquipment.status &&
       !['AVAILABLE', 'BOOKED'].includes(
@@ -574,6 +613,17 @@ export default function Bookings() {
           </div>
         </div>
 
+        {externalAgreement && (
+          <div className="auth-success" role="note">
+            <strong>Shared access agreement</strong>
+            <p>Valid {formatDate(externalAgreement.agreement.startDate)} to {formatDate(externalAgreement.agreement.endDate)} · Fee ₹{externalAgreement.agreement.feePerHour}/hour</p>
+            {externalAgreement.agreement.allowedStartTime && (
+              <p>Allowed hours: {externalAgreement.agreement.allowedStartTime}–{externalAgreement.agreement.allowedEndTime}</p>
+            )}
+            <p>Minimum notice: {externalAgreement.listing?.minimumNoticeHours ?? 0} hours · Maximum duration: {externalAgreement.listing?.maximumBookingHours ?? '—'} hours.</p>
+          </div>
+        )}
+
         {loading && equipment.length === 0 ? (
           <p className="booking-form-note">
             Loading equipment options…
@@ -593,7 +643,7 @@ export default function Bookings() {
                 value={form.equipmentId}
                 onChange={handleChange}
                 required
-                disabled={submitting || loading}
+                disabled={submitting || loading || Boolean(externalAgreement)}
               >
                 <option value="">Select equipment</option>
 
@@ -621,6 +671,8 @@ export default function Bookings() {
                   name="startTime"
                   type="datetime-local"
                   value={form.startTime}
+                  min={externalAgreement?.agreement?.startDate?.slice(0, 16)}
+                  max={externalAgreement?.agreement?.endDate?.slice(0, 16)}
                   onChange={handleChange}
                   required
                   disabled={submitting}
@@ -634,7 +686,8 @@ export default function Bookings() {
                   name="endTime"
                   type="datetime-local"
                   value={form.endTime}
-                  min={form.startTime || undefined}
+                  min={form.startTime || externalAgreement?.agreement?.startDate?.slice(0, 16) || undefined}
+                  max={externalAgreement?.agreement?.endDate?.slice(0, 16)}
                   onChange={handleChange}
                   required
                   disabled={submitting}

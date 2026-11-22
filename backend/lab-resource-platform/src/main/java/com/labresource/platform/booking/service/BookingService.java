@@ -18,6 +18,7 @@ import com.labresource.platform.booking.event.BookingReleasedEvent;
 import com.labresource.platform.utilization.entity.Utilization;
 import com.labresource.platform.utilization.repository.UtilizationRepository;
 import com.labresource.platform.booking.waitlist.repository.WaitlistRepository;
+import com.labresource.platform.sharing.service.ExternalBookingValidator;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
@@ -41,8 +42,15 @@ public class BookingService {
     @Autowired(required = false)
     private WaitlistRepository waitlistRepository;
 
+    @Autowired(required = false)
+    private ExternalBookingValidator externalBookingValidator;
+
     public void setWaitlistRepository(WaitlistRepository waitlistRepository) {
         this.waitlistRepository = waitlistRepository;
+    }
+
+    public void setExternalBookingValidator(ExternalBookingValidator externalBookingValidator) {
+        this.externalBookingValidator = externalBookingValidator;
     }
 
     public BookingService(
@@ -179,6 +187,11 @@ public class BookingService {
         if (peakConcurrent >= equipment.getQuantity()) {
             throw new IllegalArgumentException(
                     "No equipment units are available during the requested time");
+        }
+
+        if (externalBookingValidator != null) {
+            booking.setSharingAgreementId(externalBookingValidator.validate(
+                    authenticatedUser, equipment, booking.getStartTime(), booking.getEndTime()));
         }
 
         booking.setId(null);
@@ -432,7 +445,7 @@ public class BookingService {
         usage.setEquipmentId(booking.getEquipmentId());
         usage.setUserId(actor.getId());
         usage.setBookingId(bookingId);
-        usage.setUsageType("BOOKING");
+        usage.setUsageType(booking.getSharingAgreementId() == null ? "BOOKING" : "SHARED");
         usage.setStartTime(now);
         usage.setCreatedAt(now);
         utilizationRepository.save(usage);

@@ -282,8 +282,8 @@ class WaitlistServiceTests {
 
     @Test
     void providesAlternativeTimeSlotsAndAlternativeEquipmentWhenBusy() {
-        LocalDateTime start = LocalDateTime.of(2026, 11, 5, 10, 0);
-        LocalDateTime end = LocalDateTime.of(2026, 11, 5, 12, 0);
+        LocalDateTime start = LocalDateTime.now().plusDays(2).withHour(10).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime end = start.plusHours(2);
 
         when(equipmentRepository.findById(5L)).thenReturn(Optional.of(microscope));
         // Requested slot is busy

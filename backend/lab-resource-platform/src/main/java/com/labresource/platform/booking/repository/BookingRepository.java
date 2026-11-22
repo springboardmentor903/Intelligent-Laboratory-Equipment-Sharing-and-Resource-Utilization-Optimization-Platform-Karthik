@@ -67,4 +67,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("windowStart") java.time.LocalDateTime windowStart,
             @Param("windowEnd") java.time.LocalDateTime windowEnd
     );
+
+    List<Booking> findBySharingAgreementId(Long sharingAgreementId);
+
+    List<Booking> findBySharingAgreementIdIn(List<Long> sharingAgreementIds);
+
+    List<Booking> findBySharingAgreementIdAndStatusInAndStartTimeAfter(
+            Long sharingAgreementId,
+            List<String> statuses,
+            LocalDateTime after
+    );
 }

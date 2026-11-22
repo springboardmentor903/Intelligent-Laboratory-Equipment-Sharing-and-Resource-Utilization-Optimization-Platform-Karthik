@@ -59,6 +59,9 @@ public class Equipment {
     @Column(nullable = false, length = 30)
     private String status = "AVAILABLE";
 
+    @Column(nullable = false)
+    private Boolean shareable = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

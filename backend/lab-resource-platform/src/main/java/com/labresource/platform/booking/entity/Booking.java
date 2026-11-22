@@ -1,4 +1,3 @@
-
 package com.labresource.platform.booking.entity;
 
 import jakarta.persistence.Column;
@@ -41,6 +40,9 @@ public class Booking {
 
     @Column(nullable = false, length = 30)
     private String status = "PENDING";
+
+    @Column(name = "sharing_agreement_id")
+    private Long sharingAgreementId;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
