@@ -89,6 +89,14 @@ export default function BookingCalendar() {
             plugins={[dayGridPlugin, timeGridPlugin]}
             initialView="dayGridMonth"
             headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
+            buttonText={{
+              today: 'Today',
+              month: 'Month',
+              week: 'Week',
+              day: 'Day',
+              prev: 'Prev',
+              next: 'Next',
+            }}
             events={events}
             eventTimeFormat={{ hour: 'numeric', minute: '2-digit', hour12: true }}
             eventClick={({ event }) => setSelectedEvent({

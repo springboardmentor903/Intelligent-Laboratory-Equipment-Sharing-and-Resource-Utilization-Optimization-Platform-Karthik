@@ -2007,177 +2007,293 @@
   overflow-wrap: anywhere;
 }
 
-/* ===== FullCalendar Toolbar & Separated Buttons ===== */
-.booking-calendar .fc,
-.fc {
-  color: var(--text);
-  --fc-border-color: var(--border);
-  --fc-page-bg-color: var(--surface);
-  --fc-neutral-bg-color: var(--surface-secondary);
-  --fc-today-bg-color: color-mix(in srgb, var(--primary) 10%, transparent);
-  --fc-button-bg-color: var(--surface);
-  --fc-button-border-color: var(--border);
-  --fc-button-hover-bg-color: var(--surface-secondary);
-  --fc-button-hover-border-color: var(--border);
-  --fc-button-active-bg-color: var(--primary);
-  --fc-button-active-border-color: var(--primary);
+/* ===== FullCalendar Toolbar & Separated Buttons (Universal v6 & v7 Support) ===== */
+.booking-calendar,
+.shared-schedule-calendar {
+  width: 100%;
 }
 
+/* 1. Header Toolbar Layout */
+.booking-calendar .fc-toolbar.fc-header-toolbar,
+.shared-schedule-calendar .fc-toolbar.fc-header-toolbar,
 .fc .fc-toolbar.fc-header-toolbar,
-.booking-calendar .fc-toolbar.fc-header-toolbar {
+.booking-calendar [class*="fc-wY"] > div:first-child,
+.shared-schedule-calendar [class*="fc-wY"] > div:first-child {
   display: flex !important;
   flex-wrap: wrap !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 14px !important;
-  margin-bottom: 22px !important;
+  gap: 16px !important;
+  margin-bottom: 24px !important;
+  padding: 4px 0 !important;
 }
 
+/* 2. Toolbar Chunks (Left, Center, Right) */
+.booking-calendar .fc-toolbar-chunk,
+.shared-schedule-calendar .fc-toolbar-chunk,
 .fc .fc-toolbar-chunk,
-.booking-calendar .fc-toolbar-chunk {
+.booking-calendar [class*="fc-wY"] > div:first-child > div,
+.shared-schedule-calendar [class*="fc-wY"] > div:first-child > div {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 10px !important;
   flex-wrap: wrap !important;
 }
 
+/* 3. Section Titles */
+.booking-calendar .fc-toolbar-title,
+.shared-schedule-calendar .fc-toolbar-title,
 .fc .fc-toolbar-title,
-.booking-calendar .fc-toolbar-title {
+.booking-calendar [class*="fc-wY"] [role="heading"],
+.shared-schedule-calendar [class*="fc-wY"] [role="heading"] {
   font-size: 1.25rem !important;
   font-weight: 750 !important;
   color: var(--text) !important;
   letter-spacing: -0.015em !important;
+  margin: 0 !important;
 }
 
-/* Break the fused button-groups and add clear 8px gaps everywhere */
+/* 4. Button Groups & Tablists - Disentangle fused buttons with clear 8px gaps */
+.booking-calendar .fc-button-group,
+.shared-schedule-calendar .fc-button-group,
 .fc .fc-button-group,
-.booking-calendar .fc-button-group {
+.booking-calendar [class*="fc-wY"] > div:first-child > div > div,
+.shared-schedule-calendar [class*="fc-wY"] > div:first-child > div > div,
+.booking-calendar [class*="fc-wY"] [role="tablist"],
+.shared-schedule-calendar [class*="fc-wY"] [role="tablist"] {
   display: inline-flex !important;
   align-items: center !important;
   gap: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-.fc .fc-button-group > .fc-button,
-.booking-calendar .fc-button-group > .fc-button {
+.booking-calendar .fc-button-group > .fc-button,
+.shared-schedule-calendar .fc-button-group > .fc-button,
+.fc .fc-button-group > .fc-button {
   margin: 0 !important;
   border-radius: 8px !important;
   position: static !important;
   flex: none !important;
 }
 
-/* Individual button base styles */
-.fc .fc-button,
-.booking-calendar .fc-button {
-  height: 38px !important;
-  padding: 0 15px !important;
-  font-size: 13.5px !important;
-  font-weight: 600 !important;
-  border-radius: 8px !important;
-  text-transform: capitalize !important;
+/* 5. Base Individual Button Styles for ALL Calendar Toolbar Buttons */
+.booking-calendar [class*="fc-wY"] > div:first-child button,
+.shared-schedule-calendar [class*="fc-wY"] > div:first-child button,
+.booking-calendar .fc-button,
+.shared-schedule-calendar .fc-button,
+.fc .fc-button {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 6px !important;
-  cursor: pointer !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  min-width: 54px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.015em !important;
+  border-radius: 8px !important;
   border: 1px solid var(--border) !important;
-  box-shadow: none !important;
-  transition: all 0.18s ease-in-out !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  white-space: nowrap !important;
+  margin: 0 2px !important;
+  outline: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.16s ease-in-out !important;
+  line-height: normal !important;
+  text-decoration: none !important;
+  text-transform: capitalize !important;
 }
 
-.fc .fc-button:focus,
-.fc .fc-button:focus-visible,
-.booking-calendar .fc-button:focus,
-.booking-calendar .fc-button:focus-visible {
+.booking-calendar [class*="fc-wY"] > div:first-child button:hover,
+.shared-schedule-calendar [class*="fc-wY"] > div:first-child button:hover,
+.booking-calendar .fc-button:hover,
+.shared-schedule-calendar .fc-button:hover,
+.fc .fc-button:hover {
+  background: var(--surface-secondary) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08) !important;
+}
+
+.booking-calendar [class*="fc-wY"] > div:first-child button:focus-visible,
+.shared-schedule-calendar [class*="fc-wY"] > div:first-child button:focus-visible,
+.booking-calendar .fc-button:focus-visible,
+.shared-schedule-calendar .fc-button:focus-visible,
+.fc .fc-button:focus-visible {
   outline: 2px solid var(--primary) !important;
   outline-offset: 2px !important;
-  box-shadow: none !important;
 }
 
-/* 1. Navigation buttons: Prev / Next */
-.fc .fc-prev-button,
-.fc .fc-next-button,
+/* 6. Navigation Buttons: Prev / Next */
+.booking-calendar [class*="fc-wY"] button[aria-label*="Previous" i],
+.booking-calendar [class*="fc-wY"] button[aria-label*="Next" i],
+.shared-schedule-calendar [class*="fc-wY"] button[aria-label*="Previous" i],
+.shared-schedule-calendar [class*="fc-wY"] button[aria-label*="Next" i],
 .booking-calendar .fc-prev-button,
-.booking-calendar .fc-next-button {
-  width: 38px !important;
-  padding: 0 !important;
+.booking-calendar .fc-next-button,
+.shared-schedule-calendar .fc-prev-button,
+.shared-schedule-calendar .fc-next-button,
+.fc .fc-prev-button,
+.fc .fc-next-button {
+  min-width: 58px !important;
+  padding: 0 16px !important;
   background: var(--surface) !important;
   border: 1px solid var(--border) !important;
   color: var(--text) !important;
+  font-weight: 600 !important;
 }
 
-.fc .fc-prev-button:hover,
-.fc .fc-next-button:hover,
+.booking-calendar [class*="fc-wY"] button[aria-label*="Previous" i]:hover,
+.booking-calendar [class*="fc-wY"] button[aria-label*="Next" i]:hover,
+.shared-schedule-calendar [class*="fc-wY"] button[aria-label*="Previous" i]:hover,
+.shared-schedule-calendar [class*="fc-wY"] button[aria-label*="Next" i]:hover,
 .booking-calendar .fc-prev-button:hover,
-.booking-calendar .fc-next-button:hover {
+.booking-calendar .fc-next-button:hover,
+.shared-schedule-calendar .fc-prev-button:hover,
+.shared-schedule-calendar .fc-next-button:hover,
+.fc .fc-prev-button:hover,
+.fc .fc-next-button:hover {
   background: var(--surface-secondary) !important;
-  border-color: var(--border) !important;
+  border-color: var(--primary) !important;
   color: var(--primary) !important;
-  transform: translateY(-1px) !important;
 }
 
-/* 2. Today button: Distinct accent tint */
-.fc .fc-today-button,
-.booking-calendar .fc-today-button {
+/* 7. Today Button: Distinct Accent Styling with high contrast */
+.booking-calendar [class*="fc-wY"] button[aria-label*="This" i],
+.shared-schedule-calendar [class*="fc-wY"] button[aria-label*="This" i],
+.booking-calendar .fc-today-button,
+.shared-schedule-calendar .fc-today-button,
+.fc .fc-today-button {
+  min-width: 64px !important;
+  padding: 0 16px !important;
+  font-weight: 700 !important;
   background: color-mix(in srgb, var(--accent-ocean) 12%, var(--surface)) !important;
   border: 1px solid color-mix(in srgb, var(--accent-ocean) 45%, transparent) !important;
   color: var(--accent-ocean) !important;
-  font-weight: 700 !important;
 }
 
-.fc .fc-today-button:hover:not(:disabled),
-.booking-calendar .fc-today-button:hover:not(:disabled) {
+.booking-calendar [class*="fc-wY"] button[aria-label*="This" i]:hover:not(:disabled),
+.shared-schedule-calendar [class*="fc-wY"] button[aria-label*="This" i]:hover:not(:disabled),
+.booking-calendar .fc-today-button:hover:not(:disabled),
+.shared-schedule-calendar .fc-today-button:hover:not(:disabled),
+.fc .fc-today-button:hover:not(:disabled) {
   background: var(--accent-ocean) !important;
   border-color: var(--accent-ocean) !important;
   color: #ffffff !important;
-  transform: translateY(-1px) !important;
 }
 
-.fc .fc-today-button:disabled,
-.booking-calendar .fc-today-button:disabled {
+.booking-calendar [class*="fc-wY"] button[aria-label*="This" i]:disabled,
+.shared-schedule-calendar [class*="fc-wY"] button[aria-label*="This" i]:disabled,
+.booking-calendar .fc-today-button:disabled,
+.shared-schedule-calendar .fc-today-button:disabled,
+.fc .fc-today-button:disabled {
   opacity: 0.55 !important;
   cursor: not-allowed !important;
   background: var(--surface-secondary) !important;
   border-color: var(--border) !important;
   color: var(--text-muted) !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
-/* 3. View Mode buttons: Day / Week / Month */
-.fc .fc-dayGridMonth-button,
-.fc .fc-timeGridWeek-button,
-.fc .fc-timeGridDay-button,
+/* 8. View Mode Switcher Buttons: Day, Week, Month */
+/* Inactive View Buttons */
+.booking-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"],
+.shared-schedule-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"],
+.booking-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"][aria-selected="false"],
+.shared-schedule-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"][aria-selected="false"],
 .booking-calendar .fc-dayGridMonth-button,
 .booking-calendar .fc-timeGridWeek-button,
-.booking-calendar .fc-timeGridDay-button {
+.booking-calendar .fc-timeGridDay-button,
+.shared-schedule-calendar .fc-dayGridMonth-button,
+.shared-schedule-calendar .fc-timeGridWeek-button,
+.shared-schedule-calendar .fc-timeGridDay-button,
+.fc .fc-dayGridMonth-button,
+.fc .fc-timeGridWeek-button,
+.fc .fc-timeGridDay-button {
+  min-width: 60px !important;
+  padding: 0 16px !important;
+  font-weight: 600 !important;
   background: var(--surface) !important;
   border: 1px solid var(--border) !important;
   color: var(--text-muted) !important;
 }
 
-.fc .fc-dayGridMonth-button:hover,
-.fc .fc-timeGridWeek-button:hover,
-.fc .fc-timeGridDay-button:hover,
+.booking-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"]:hover,
+.shared-schedule-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"]:hover,
 .booking-calendar .fc-dayGridMonth-button:hover,
 .booking-calendar .fc-timeGridWeek-button:hover,
-.booking-calendar .fc-timeGridDay-button:hover {
+.booking-calendar .fc-timeGridDay-button:hover,
+.shared-schedule-calendar .fc-dayGridMonth-button:hover,
+.shared-schedule-calendar .fc-timeGridWeek-button:hover,
+.shared-schedule-calendar .fc-timeGridDay-button:hover,
+.fc .fc-dayGridMonth-button:hover,
+.fc .fc-timeGridWeek-button:hover,
+.fc .fc-timeGridDay-button:hover {
   background: var(--surface-secondary) !important;
   border-color: var(--border) !important;
   color: var(--text) !important;
 }
 
-/* Active View Mode button */
-.fc .fc-dayGridMonth-button.fc-button-active,
-.fc .fc-timeGridWeek-button.fc-button-active,
-.fc .fc-timeGridDay-button.fc-button-active,
-.fc .fc-button-primary:not(:disabled).fc-button-active,
+/* Active View Mode Button: Solid Primary Background with Strong Contrast */
+.booking-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"][aria-selected="true"],
+.shared-schedule-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"][aria-selected="true"],
 .booking-calendar .fc-dayGridMonth-button.fc-button-active,
 .booking-calendar .fc-timeGridWeek-button.fc-button-active,
 .booking-calendar .fc-timeGridDay-button.fc-button-active,
-.booking-calendar .fc-button-primary:not(:disabled).fc-button-active {
+.shared-schedule-calendar .fc-dayGridMonth-button.fc-button-active,
+.shared-schedule-calendar .fc-timeGridWeek-button.fc-button-active,
+.shared-schedule-calendar .fc-timeGridDay-button.fc-button-active,
+.booking-calendar .fc-button-primary:not(:disabled).fc-button-active,
+.shared-schedule-calendar .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-dayGridMonth-button.fc-button-active,
+.fc .fc-timeGridWeek-button.fc-button-active,
+.fc .fc-timeGridDay-button.fc-button-active,
+.fc .fc-button-primary:not(:disabled).fc-button-active {
   background: var(--primary) !important;
   border-color: var(--primary) !important;
   color: var(--primary-text, #ffffff) !important;
-  font-weight: 700 !important;
+  font-weight: 750 !important;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 30%, transparent) !important;
+  cursor: default !important;
+}
+
+/* 9. Dark Theme Specific Contrast Adjustments */
+:root[data-theme="dark"] .booking-calendar [class*="fc-wY"] button[aria-label*="This" i]:not(:disabled),
+:root[data-theme="dark"] .shared-schedule-calendar [class*="fc-wY"] button[aria-label*="This" i]:not(:disabled),
+:root[data-theme="dark"] .booking-calendar .fc-today-button:not(:disabled),
+:root[data-theme="dark"] .shared-schedule-calendar .fc-today-button:not(:disabled),
+:root[data-theme="dark"] .fc .fc-today-button:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-ocean) 18%, var(--surface)) !important;
+  border-color: color-mix(in srgb, var(--accent-ocean) 50%, transparent) !important;
+  color: var(--accent-ocean) !important;
+}
+
+:root[data-theme="dark"] .booking-calendar [class*="fc-wY"] button[aria-label*="This" i]:hover:not(:disabled),
+:root[data-theme="dark"] .shared-schedule-calendar [class*="fc-wY"] button[aria-label*="This" i]:hover:not(:disabled),
+:root[data-theme="dark"] .booking-calendar .fc-today-button:hover:not(:disabled),
+:root[data-theme="dark"] .shared-schedule-calendar .fc-today-button:hover:not(:disabled),
+:root[data-theme="dark"] .fc .fc-today-button:hover:not(:disabled) {
+  background: var(--accent-ocean) !important;
+  border-color: var(--accent-ocean) !important;
+  color: #041d1a !important;
+}
+
+:root[data-theme="dark"] .booking-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"][aria-selected="true"],
+:root[data-theme="dark"] .shared-schedule-calendar [class*="fc-wY"] [role="tablist"] button[role="tab"][aria-selected="true"],
+:root[data-theme="dark"] .booking-calendar .fc-button-primary:not(:disabled).fc-button-active,
+:root[data-theme="dark"] .shared-schedule-calendar .fc-button-primary:not(:disabled).fc-button-active,
+:root[data-theme="dark"] .fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-text, #042f2e) !important;
 }
 
 .calendar-event-details {

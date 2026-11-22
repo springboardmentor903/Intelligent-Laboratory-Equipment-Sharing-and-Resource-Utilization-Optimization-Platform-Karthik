@@ -751,7 +751,7 @@ export default function Sharing() {
           )}
 
           {schedule && (
-            <div style={{ marginTop: '16px' }}>
+            <div className="booking-calendar shared-schedule-calendar" style={{ marginTop: '16px' }}>
               <div style={{ marginBottom: '12px' }}>
                 <p style={{ margin: '0 0 6px', fontSize: '13.5px', color: 'var(--text-muted)' }}>
                   External Allocation: <strong>{schedule.externalMinutesUsed} min</strong> used of{' '}
@@ -787,6 +787,13 @@ export default function Sharing() {
                   left: 'prev,next today',
                   center: 'title',
                   right: 'timeGridDay,timeGridWeek',
+                }}
+                buttonText={{
+                  today: 'Today',
+                  week: 'Week',
+                  day: 'Day',
+                  prev: 'Prev',
+                  next: 'Next',
                 }}
                 datesSet={visibleDates}
                 events={[
