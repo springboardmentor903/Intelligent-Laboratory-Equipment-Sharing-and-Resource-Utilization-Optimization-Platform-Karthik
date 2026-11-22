@@ -1,4 +1,5 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { getNavigationItems } from '../access/roleAccess.js'
@@ -46,10 +47,29 @@ function MoonIcon() {
   )
 }
 
+const ROUTE_ICONS = {
+  '/': '🏠',
+  '/dashboard': '📊',
+  '/sharing': '🤝',
+  '/equipment': '🔬',
+  '/bookings': '📅',
+  '/booking-calendar': '📆',
+  '/utilization': '📈',
+  '/monitoring': '📡',
+  '/maintenance': '🔧',
+  '/profile': '👤',
+  '/sharing-analytics': '📉',
+  '/login': '🔑',
+  '/register': '📝',
+  '/register-institution': '🏛️',
+}
+
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme()
   const { logout, isAuthenticated, user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const isDark = theme === 'dark'
 
@@ -57,80 +77,182 @@ export default function Navbar() {
     `navbar-link${isActive ? ' navbar-link-active' : ''}`
   const roleNavigation = getNavigationItems(user?.roles)
 
+  // Automatically close mobile sidebar on location/route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
+
   function handleLogout() {
     logout()
     navigate('/', { replace: true })
   }
 
+  const closeDrawer = () => setMobileOpen(false)
+
   return (
-    <header className="app-header">
-      <nav className="navbar-container" aria-label="Main navigation">
-        <Link to="/" className="brand">
+    <>
+      {/* Mobile top bar (visible on mobile viewports) */}
+      <header className="mobile-topbar" aria-label="Mobile top bar">
+        <button
+          type="button"
+          className="mobile-menu-btn"
+          onClick={() => setMobileOpen((prev) => !prev)}
+          aria-label="Toggle navigation menu"
+          aria-expanded={mobileOpen}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
+        <Link to="/" className="brand" onClick={closeDrawer}>
           <span className="brand-icon" aria-hidden="true">L</span>
           <span className="brand-name">
             Lab<span>Resource</span>
           </span>
         </Link>
 
-        <div className="navbar-links">
-          <NavLink to="/" end className={navLinkClass}>
-            Home
-          </NavLink>
+        <button
+          type="button"
+          className="theme-toggle mobile-quick-toggle"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+          title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+        >
+          <span className="theme-toggle-icon" aria-hidden="true">
+            {isDark ? <SunIcon /> : <MoonIcon />}
+          </span>
+        </button>
+      </header>
 
-          {!isAuthenticated ? (
-            <>
-              <NavLink to="/login" className={navLinkClass}>
-                Login
-              </NavLink>
-              <NavLink to="/register" className={navLinkClass}>
-                Register
-              </NavLink>
-              <NavLink to="/register-institution" className={navLinkClass}>
-                Register Institution
-              </NavLink>
-            </>
-          ) : (
-            <>
-              {roleNavigation.map((item) => (
-                <NavLink
-                  to={item.to}
-                  className={navLinkClass}
-                  key={item.to}
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </>
-          )}
-        </div>
+      {/* Backdrop overlay for mobile drawer */}
+      {mobileOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={closeDrawer}
+          aria-hidden="true"
+        />
+      )}
 
-        <div className="navbar-actions">
+      {/* Primary Vertical Left Sidebar */}
+      <aside
+        className={`app-sidebar ${mobileOpen ? 'sidebar-open' : ''}`}
+        aria-label="Primary navigation sidebar"
+      >
+        <div className="sidebar-header">
+          <Link to="/" className="brand" onClick={closeDrawer}>
+            <span className="brand-icon" aria-hidden="true">L</span>
+            <span className="brand-name">
+              Lab<span>Resource</span>
+            </span>
+          </Link>
+
           <button
             type="button"
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-            title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+            className="sidebar-close-btn"
+            onClick={closeDrawer}
+            aria-label="Close navigation sidebar"
           >
-            <span className="theme-toggle-icon" aria-hidden="true">
-              {isDark ? <SunIcon /> : <MoonIcon />}
-            </span>
-            <span className="theme-toggle-label">
-              {isDark ? 'Light mode' : 'Dark mode'}
-            </span>
+            ✕
           </button>
+        </div>
 
-          {isAuthenticated && (
+        <nav className="sidebar-nav" aria-label="Main navigation">
+          <div className="sidebar-nav-section-title">Navigation</div>
+          <div className="navbar-links">
+            <NavLink to="/" end className={navLinkClass} onClick={closeDrawer}>
+              <span className="sidebar-link-icon" aria-hidden="true">
+                {ROUTE_ICONS['/']}
+              </span>
+              <span className="sidebar-link-text">Home</span>
+            </NavLink>
+
+            {!isAuthenticated ? (
+              <>
+                <NavLink to="/login" className={navLinkClass} onClick={closeDrawer}>
+                  <span className="sidebar-link-icon" aria-hidden="true">
+                    {ROUTE_ICONS['/login']}
+                  </span>
+                  <span className="sidebar-link-text">Login</span>
+                </NavLink>
+                <NavLink to="/register" className={navLinkClass} onClick={closeDrawer}>
+                  <span className="sidebar-link-icon" aria-hidden="true">
+                    {ROUTE_ICONS['/register']}
+                  </span>
+                  <span className="sidebar-link-text">Register</span>
+                </NavLink>
+                <NavLink to="/register-institution" className={navLinkClass} onClick={closeDrawer}>
+                  <span className="sidebar-link-icon" aria-hidden="true">
+                    {ROUTE_ICONS['/register-institution']}
+                  </span>
+                  <span className="sidebar-link-text">Register Institution</span>
+                </NavLink>
+              </>
+            ) : (
+              <>
+                {roleNavigation.map((item) => (
+                  <NavLink
+                    to={item.to}
+                    className={navLinkClass}
+                    key={item.to}
+                    onClick={closeDrawer}
+                  >
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS[item.to] || '📌'}
+                    </span>
+                    <span className="sidebar-link-text">{item.label}</span>
+                  </NavLink>
+                ))}
+              </>
+            )}
+          </div>
+        </nav>
+
+        <div className="sidebar-footer">
+          {isAuthenticated && user && (
+            <div className="sidebar-user-card">
+              <span className="sidebar-user-avatar" aria-hidden="true">
+                {(user.email?.[0] || 'U').toUpperCase()}
+              </span>
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-email" title={user.email}>{user.email}</span>
+                <span className="sidebar-user-role">
+                  {user.roles?.[0]?.replaceAll('_', ' ') || 'User'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="navbar-actions">
             <button
               type="button"
-              className="navbar-logout"
-              onClick={handleLogout}
+              className="theme-toggle"
+              onClick={toggleTheme}
+              aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+              title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
             >
-              Logout
+              <span className="theme-toggle-icon" aria-hidden="true">
+                {isDark ? <SunIcon /> : <MoonIcon />}
+              </span>
+              <span className="theme-toggle-label">
+                {isDark ? 'Light mode' : 'Dark mode'}
+              </span>
             </button>
-          )}
+
+            {isAuthenticated && (
+              <button
+                type="button"
+                className="navbar-logout"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            )}
+          </div>
         </div>
-      </nav>
-    </header>
+      </aside>
+    </>
   )
 }

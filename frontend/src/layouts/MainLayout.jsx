@@ -8,16 +8,18 @@ export default function MainLayout() {
     <div className="app-layout">
       <Navbar />
 
-      <main className="app-main">
-        <Outlet />
-      </main>
+      <div className="app-content-wrapper">
+        <main className="app-main">
+          <Outlet />
+        </main>
 
-      <footer className="app-footer">
-        <p>
-          © {currentYear} Lab Resource Platform.
-          <span> Smarter laboratory resource management.</span>
-        </p>
-      </footer>
+        <footer className="app-footer">
+          <p>
+            © {currentYear} Lab Resource Platform.
+            <span> Smarter laboratory resource management.</span>
+          </p>
+        </footer>
+      </div>
     </div>
   )
 }

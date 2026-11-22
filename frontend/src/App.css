@@ -1,25 +1,38 @@
 
-/* ===== Application header ===== */
-.app-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+/* ===== Primary Application Layout & Vertical Sidebar ===== */
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: row;
+  background: var(--bg);
   color: var(--text);
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.navbar-container {
-  width: 100%;
-  max-width: 1440px;
-  min-height: 76px;
-  margin: 0 auto;
-  padding: 14px 28px;
+/* Vertical Left Sidebar (Desktop Viewports: 256px wide) */
+.app-sidebar {
+  width: 256px;
+  min-width: 256px;
+  max-width: 256px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  z-index: 100;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-header {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .brand {
@@ -28,81 +41,225 @@
   gap: 11px;
   flex-shrink: 0;
   color: var(--text);
+  text-decoration: none;
 }
 
 .brand-icon {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: var(--primary);
-  color: #ffffff;
-  font-size: 23px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary), var(--accent-ocean));
+  color: var(--primary-text, #ffffff);
+  font-size: 22px;
   font-weight: 800;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
 .brand-name {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.4px;
+  color: var(--text);
 }
 
 .brand-name span {
-  color: var(--primary);
+  color: var(--accent-ocean);
 }
 
-/* ===== Navigation links ===== */
-.navbar-links {
-  display: flex;
+.sidebar-close-btn {
+  display: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
   align-items: center;
   justify-content: center;
+  font-size: 14px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-close-btn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* Sidebar Navigation */
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
-  flex-wrap: wrap;
 }
 
-.navbar-link {
-  padding: 8px 11px;
-  border-radius: 8px;
+.sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.sidebar-nav-section-title {
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
+  padding: 8px 12px 6px;
+}
+
+/* Stacked Full-Width Navigation Links */
+.sidebar-nav .navbar-links {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.sidebar-nav .navbar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9.5px 14px;
+  border-radius: 8px;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 550;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all 0.16s ease;
+}
+
+.sidebar-nav .navbar-link:hover {
+  background: var(--surface-secondary);
+  color: var(--text);
+  border-left-color: var(--border);
+}
+
+.sidebar-nav .navbar-link-active {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-secondary));
+  color: var(--primary) !important;
+  font-weight: 700;
+  border-left-color: var(--primary);
+}
+
+:root[data-theme="dark"] .sidebar-nav .navbar-link-active {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary) !important;
+  border-left-color: var(--primary);
+}
+
+.sidebar-link-icon {
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.sidebar-link-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.navbar-link:hover {
-  color: var(--primary);
+/* Sidebar Footer (Theme Toggle & Logout Anchors) */
+.sidebar-footer {
+  padding: 14px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.sidebar-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
   background: var(--surface-secondary);
+  border: 1px solid var(--border);
 }
 
-.navbar-link-active {
-  color: var(--primary);
-  background: var(--surface-secondary);
+.sidebar-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--accent-ocean));
+  color: var(--primary-text, #ffffff);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 750;
+  flex-shrink: 0;
 }
 
-/* ===== Theme toggle ===== */
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-user-email {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.sidebar-footer .navbar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Theme Toggle Button */
 .theme-toggle {
-  min-height: 42px;
-  padding: 9px 13px;
+  min-height: 40px;
+  width: 100%;
+  padding: 8px 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   flex-shrink: 0;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 650;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  transition: all 0.16s ease;
 }
 
 .theme-toggle:hover {
   background: var(--surface-secondary);
   border-color: var(--primary);
+  color: var(--primary);
 }
 
 .theme-toggle:focus-visible {
@@ -139,71 +296,42 @@
   transform: rotate(-12deg);
 }
 
-/* ===== Responsive navigation ===== */
-@media (max-width: 850px) {
-  .navbar-container {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    padding: 14px 18px;
-    gap: 14px;
-  }
-
-  .navbar-links {
-    order: 3;
-    width: 100%;
-    justify-content: flex-start;
-    overflow-x: auto;
-    padding-bottom: 2px;
-  }
+/* Logout Button */
+.navbar-logout {
+  width: 100%;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--status-danger, #be123c);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.16s ease;
 }
 
-@media (max-width: 480px) {
-  .navbar-container {
-    padding: 12px;
-  }
-
-  .brand-name {
-    font-size: 16px;
-  }
-
-  .brand-icon {
-    width: 36px;
-    height: 36px;
-  }
-
-  .theme-toggle {
-    padding: 8px 10px;
-  }
-
-  .theme-toggle-label {
-    display: none;
-  }
-
-  .navbar-links {
-    gap: 3px;
-  }
-
-  .navbar-link {
-    padding: 9px 10px;
-    font-size: 13px;
-  }
+.navbar-logout:hover {
+  background: var(--status-danger-bg, #ffe4e6);
+  border-color: var(--status-danger-border, #fecdd3);
 }
 
-/* ===== Main application layout ===== */
-.app-layout {
-  min-height: 100vh;
+/* Main Content Area Alongside Sidebar */
+.app-content-wrapper {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
-  color: var(--text);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  min-height: 100vh;
 }
 
 .app-main {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 30px 28px;
+  padding: 30px 32px;
   flex: 1;
 }
 
@@ -220,13 +348,108 @@
   line-height: 1.7;
 }
 
-@media (max-width: 768px) {
+/* Mobile Topbar & Responsive Drawer Support (Screens <= 900px) */
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.mobile-menu-btn {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--surface-secondary);
+}
+
+.mobile-quick-toggle {
+  width: auto;
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  animation: fadeInBackdrop 0.2s ease;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .mobile-topbar {
+    display: flex;
+  }
+
+  .sidebar-close-btn {
+    display: grid;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 275px;
+    max-width: 85vw;
+    transform: translateX(-100%);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .app-sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
   .app-main {
-    padding: 22px 14px;
+    padding: 22px 16px;
   }
 
   .app-footer {
-    padding: 18px 14px;
+    padding: 18px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-name {
+    font-size: 16px;
+  }
+
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .app-main {
+    padding: 18px 12px;
   }
 }
 
@@ -1784,18 +2007,177 @@
   overflow-wrap: anywhere;
 }
 
-.booking-calendar .fc {
+/* ===== FullCalendar Toolbar & Separated Buttons ===== */
+.booking-calendar .fc,
+.fc {
   color: var(--text);
   --fc-border-color: var(--border);
   --fc-page-bg-color: var(--surface);
   --fc-neutral-bg-color: var(--surface-secondary);
   --fc-today-bg-color: color-mix(in srgb, var(--primary) 10%, transparent);
-  --fc-button-bg-color: var(--primary);
-  --fc-button-border-color: var(--primary);
-  --fc-button-hover-bg-color: var(--primary-hover);
-  --fc-button-hover-border-color: var(--primary-hover);
-  --fc-button-active-bg-color: var(--primary-hover);
-  --fc-button-active-border-color: var(--primary-hover);
+  --fc-button-bg-color: var(--surface);
+  --fc-button-border-color: var(--border);
+  --fc-button-hover-bg-color: var(--surface-secondary);
+  --fc-button-hover-border-color: var(--border);
+  --fc-button-active-bg-color: var(--primary);
+  --fc-button-active-border-color: var(--primary);
+}
+
+.fc .fc-toolbar.fc-header-toolbar,
+.booking-calendar .fc-toolbar.fc-header-toolbar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  margin-bottom: 22px !important;
+}
+
+.fc .fc-toolbar-chunk,
+.booking-calendar .fc-toolbar-chunk {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.fc .fc-toolbar-title,
+.booking-calendar .fc-toolbar-title {
+  font-size: 1.25rem !important;
+  font-weight: 750 !important;
+  color: var(--text) !important;
+  letter-spacing: -0.015em !important;
+}
+
+/* Break the fused button-groups and add clear 8px gaps everywhere */
+.fc .fc-button-group,
+.booking-calendar .fc-button-group {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.fc .fc-button-group > .fc-button,
+.booking-calendar .fc-button-group > .fc-button {
+  margin: 0 !important;
+  border-radius: 8px !important;
+  position: static !important;
+  flex: none !important;
+}
+
+/* Individual button base styles */
+.fc .fc-button,
+.booking-calendar .fc-button {
+  height: 38px !important;
+  padding: 0 15px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  text-transform: capitalize !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
+  transition: all 0.18s ease-in-out !important;
+}
+
+.fc .fc-button:focus,
+.fc .fc-button:focus-visible,
+.booking-calendar .fc-button:focus,
+.booking-calendar .fc-button:focus-visible {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+
+/* 1. Navigation buttons: Prev / Next */
+.fc .fc-prev-button,
+.fc .fc-next-button,
+.booking-calendar .fc-prev-button,
+.booking-calendar .fc-next-button {
+  width: 38px !important;
+  padding: 0 !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+}
+
+.fc .fc-prev-button:hover,
+.fc .fc-next-button:hover,
+.booking-calendar .fc-prev-button:hover,
+.booking-calendar .fc-next-button:hover {
+  background: var(--surface-secondary) !important;
+  border-color: var(--border) !important;
+  color: var(--primary) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* 2. Today button: Distinct accent tint */
+.fc .fc-today-button,
+.booking-calendar .fc-today-button {
+  background: color-mix(in srgb, var(--accent-ocean) 12%, var(--surface)) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-ocean) 45%, transparent) !important;
+  color: var(--accent-ocean) !important;
+  font-weight: 700 !important;
+}
+
+.fc .fc-today-button:hover:not(:disabled),
+.booking-calendar .fc-today-button:hover:not(:disabled) {
+  background: var(--accent-ocean) !important;
+  border-color: var(--accent-ocean) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+
+.fc .fc-today-button:disabled,
+.booking-calendar .fc-today-button:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  background: var(--surface-secondary) !important;
+  border-color: var(--border) !important;
+  color: var(--text-muted) !important;
+}
+
+/* 3. View Mode buttons: Day / Week / Month */
+.fc .fc-dayGridMonth-button,
+.fc .fc-timeGridWeek-button,
+.fc .fc-timeGridDay-button,
+.booking-calendar .fc-dayGridMonth-button,
+.booking-calendar .fc-timeGridWeek-button,
+.booking-calendar .fc-timeGridDay-button {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-muted) !important;
+}
+
+.fc .fc-dayGridMonth-button:hover,
+.fc .fc-timeGridWeek-button:hover,
+.fc .fc-timeGridDay-button:hover,
+.booking-calendar .fc-dayGridMonth-button:hover,
+.booking-calendar .fc-timeGridWeek-button:hover,
+.booking-calendar .fc-timeGridDay-button:hover {
+  background: var(--surface-secondary) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+/* Active View Mode button */
+.fc .fc-dayGridMonth-button.fc-button-active,
+.fc .fc-timeGridWeek-button.fc-button-active,
+.fc .fc-timeGridDay-button.fc-button-active,
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.booking-calendar .fc-dayGridMonth-button.fc-button-active,
+.booking-calendar .fc-timeGridWeek-button.fc-button-active,
+.booking-calendar .fc-timeGridDay-button.fc-button-active,
+.booking-calendar .fc-button-primary:not(:disabled).fc-button-active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-text, #ffffff) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 30%, transparent) !important;
 }
 
 .calendar-event-details {
@@ -3417,4 +3799,86 @@
   margin: 3px 0;
   font-size: 13.5px;
   color: var(--text-muted);
+}
+
+/* ===== Bookings Tab Toolbar Navigation (Separated buttons with 8px gap) ===== */
+.booking-tabs-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.booking-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px;
+  font-weight: 600;
+  font-size: 13.5px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  transition: all 0.18s ease;
+}
+
+.booking-tab-btn:hover {
+  background: var(--surface-secondary);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.booking-tab-btn.booking-tab-btn-active,
+.booking-tab-btn.btn-primary {
+  background: var(--primary) !important;
+  color: var(--primary-text, #ffffff) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 25%, transparent) !important;
+}
+
+/* Ensure sharing badges use semantic variables */
+.sharing-badge-active {
+  background: var(--status-active-bg) !important;
+  color: var(--status-active) !important;
+  border: 1px solid var(--status-active-border) !important;
+}
+
+.sharing-badge-pending {
+  background: var(--status-pending-bg) !important;
+  color: var(--status-pending) !important;
+  border: 1px solid var(--status-pending-border) !important;
+}
+
+.sharing-badge-forwarded {
+  background: var(--badge-indigo-bg) !important;
+  color: var(--badge-indigo-text) !important;
+  border: 1px solid color-mix(in srgb, var(--secondary-indigo) 30%, transparent) !important;
+}
+
+.sharing-badge-rejected,
+.sharing-badge-revoked,
+.sharing-badge-expired,
+.sharing-badge-terminated {
+  background: var(--status-danger-bg) !important;
+  color: var(--status-danger) !important;
+  border: 1px solid var(--status-danger-border) !important;
+}
+
+.balance-cell-positive {
+  color: var(--status-active) !important;
+  font-weight: 700;
+}
+
+.balance-cell-negative {
+  color: var(--status-danger) !important;
+  font-weight: 700;
+}
+
+.shared-agreement-banner {
+  border-left: 4px solid var(--accent-ocean) !important;
 }

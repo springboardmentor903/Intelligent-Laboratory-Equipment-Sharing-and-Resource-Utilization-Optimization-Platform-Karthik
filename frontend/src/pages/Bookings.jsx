@@ -549,12 +549,11 @@ export default function Bookings() {
       )}
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+      <div className="booking-tabs-nav" aria-label="Booking management sections">
         <button
           type="button"
-          className={`btn ${activeTab === 'bookings' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`booking-tab-btn btn ${activeTab === 'bookings' ? 'booking-tab-btn-active btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('bookings')}
-          style={{ fontWeight: 600, fontSize: '14px', padding: '8px 18px' }}
         >
           📅 Bookings & Reservations ({bookings.length})
         </button>
@@ -562,9 +561,8 @@ export default function Bookings() {
         {canApproveBookings(user?.roles) && (
           <button
             type="button"
-            className={`btn ${activeTab === 'approvals' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`booking-tab-btn btn ${activeTab === 'approvals' ? 'booking-tab-btn-active btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('approvals')}
-            style={{ fontWeight: 600, fontSize: '14px', padding: '8px 18px' }}
           >
             ⏳ Pending Approvals {pendingCount > 0 ? `(${pendingCount})` : ''}
           </button>
@@ -572,9 +570,8 @@ export default function Bookings() {
 
         <button
           type="button"
-          className={`btn ${activeTab === 'waitlist' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`booking-tab-btn btn ${activeTab === 'waitlist' ? 'booking-tab-btn-active btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('waitlist')}
-          style={{ fontWeight: 600, fontSize: '14px', padding: '8px 18px' }}
         >
           📋 My Waitlist {waitlistCount > 0 ? `(${waitlistCount})` : ''}
         </button>

@@ -11,27 +11,58 @@
 
   color-scheme: light;
 
-  --bg: #f5f7fb;
+  /* Surfaces & typography */
+  --bg: #f8fafc;
   --surface: #ffffff;
-  --surface-secondary: #f0f4fa;
-  --text: #172033;
-  --text-muted: #68758b;
-  --border: #e1e7f0;
-  --primary: #3157d5;
-  --primary-hover: #2545b5;
-  --nav-bg: #14213d;
-  --nav-text: #dce5f7;
-  --success: #16845b;
-  --danger: #d94343;
-  --shadow: 0 8px 28px rgb(25 42 70 / 6%);
+  --surface-secondary: #f1f5f9;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+
+  /* 1. Primary brand & active navigation accent: Deep Teal / Ocean Blue */
+  --primary: #0f766e;
+  --primary-hover: #0d9488;
+  --primary-text: #ffffff;
+  --primary-light: #ccfbf1;
+  --accent-ocean: #0284c7;
+  --accent-ocean-hover: #0369a1;
+  --accent-ocean-light: #e0f2fe;
+
+  /* 2. Secondary highlights & interactive badges: Slate Indigo */
+  --secondary-indigo: #4338ca;
+  --secondary-indigo-hover: #3730a3;
+  --secondary-indigo-light: #e0e7ff;
+  --badge-indigo-bg: #e0e7ff;
+  --badge-indigo-text: #4338ca;
+
+  /* 3. Semantic status accents: Emerald, Warm Amber, Rose/Crimson */
+  --status-active: #15803d;
+  --status-active-bg: #dcfce7;
+  --status-active-border: #86efac;
+
+  --status-pending: #b45309;
+  --status-pending-bg: #fef3c7;
+  --status-pending-border: #fde68a;
+
+  --status-danger: #be123c;
+  --status-danger-bg: #ffe4e6;
+  --status-danger-border: #fecdd3;
+
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #be123c;
+
+  --nav-bg: #042f2e;
+  --nav-text: #e6fffa;
+  --shadow: 0 8px 28px rgb(15 23 42 / 6%);
 
   /* Navigation & accent links */
-  --accent-blue: #2563eb;
-  --accent-blue-hover: #1d4ed8;
-  --accent-green: #0d9488;
-  --accent-green-hover: #0f766e;
-  --accent-purple: #7c3aed;
-  --accent-purple-hover: #6d28d9;
+  --accent-blue: #0284c7;
+  --accent-blue-hover: #0369a1;
+  --accent-green: #0f766e;
+  --accent-green-hover: #0d9488;
+  --accent-purple: #4338ca;
+  --accent-purple-hover: #3730a3;
 
   /* Theme toggle icon colors (light mode: cool dark-blue/slate for moon) */
   --theme-toggle-sun: #d97706;
@@ -41,27 +72,58 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #0d1422;
-  --surface: #151f31;
-  --surface-secondary: #1d2a40;
-  --text: #edf2fc;
-  --text-muted: #a2b0c6;
-  --border: #2c3a50;
-  --primary: #7795ff;
-  --primary-hover: #91a8ff;
-  --nav-bg: #090f1c;
-  --nav-text: #e1e9fa;
-  --success: #51d6a0;
-  --danger: #ff8585;
-  --shadow: 0 8px 28px rgb(0 0 0 / 20%);
+  /* Surfaces & typography */
+  --bg: #0b1120;
+  --surface: #111827;
+  --surface-secondary: #1e293b;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --border: #334155;
+
+  /* 1. Primary brand & active navigation accent: Teal / Ocean Sky Blue */
+  --primary: #2dd4bf;
+  --primary-hover: #5eead4;
+  --primary-text: #042f2e;
+  --primary-light: #134e4a;
+  --accent-ocean: #38bdf8;
+  --accent-ocean-hover: #7dd3fc;
+  --accent-ocean-light: #082f49;
+
+  /* 2. Secondary highlights & interactive badges: Slate Indigo */
+  --secondary-indigo: #818cf8;
+  --secondary-indigo-hover: #a5b4fc;
+  --secondary-indigo-light: #1e1b4b;
+  --badge-indigo-bg: #1e1b4b;
+  --badge-indigo-text: #c7d2fe;
+
+  /* 3. Semantic status accents: Emerald, Warm Amber, Rose/Crimson */
+  --status-active: #22c55e;
+  --status-active-bg: #052e16;
+  --status-active-border: #166534;
+
+  --status-pending: #f59e0b;
+  --status-pending-bg: #451a03;
+  --status-pending-border: #78350f;
+
+  --status-danger: #f43f5e;
+  --status-danger-bg: #4c0519;
+  --status-danger-border: #881337;
+
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #f43f5e;
+
+  --nav-bg: #041d1a;
+  --nav-text: #e0f2fe;
+  --shadow: 0 8px 28px rgb(0 0 0 / 25%);
 
   /* Navigation & accent links (dark mode) */
-  --accent-blue: #60a5fa;
-  --accent-blue-hover: #93c5fd;
-  --accent-green: #34d399;
+  --accent-blue: #38bdf8;
+  --accent-blue-hover: #7dd3fc;
+  --accent-green: #2dd4bf;
   --accent-green-hover: #5eead4;
-  --accent-purple: #a78bfa;
-  --accent-purple-hover: #c4b5fd;
+  --accent-purple: #818cf8;
+  --accent-purple-hover: #a5b4fc;
 
   /* Theme toggle icon colors (dark mode: cool light-blue / silver for moon) */
   --theme-toggle-sun: #fbbf24;
