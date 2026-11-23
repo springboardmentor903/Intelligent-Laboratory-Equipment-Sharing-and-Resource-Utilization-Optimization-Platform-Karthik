@@ -127,6 +127,59 @@ class MaintenanceServiceTests {
         verify(maintenanceRepository, never()).save(any());
     }
 
+    @Test
+    void createsPreventiveMaintenanceWithInitialTechnicianAssignment() {
+        Maintenance record = validRecord();
+        record.setMaintenanceType("PREVENTIVE");
+        record.setAssignedTo(5L);
+        record.setScheduledDate(LocalDateTime.now().plusDays(3));
+
+        when(equipmentRepository.existsById(2L)).thenReturn(true);
+        when(userRepository.existsById(3L)).thenReturn(true);
+        when(userRepository.existsById(5L)).thenReturn(true);
+        when(maintenanceRepository.save(any(Maintenance.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        Maintenance created = service.createMaintenance(record);
+
+        org.junit.jupiter.api.Assertions.assertEquals("PREVENTIVE", created.getMaintenanceType());
+        org.junit.jupiter.api.Assertions.assertEquals("ASSIGNED", created.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(5L, created.getAssignedTo());
+        verify(maintenanceRepository).save(any(Maintenance.class));
+    }
+
+    @Test
+    void logsDowntimeExplicitly() {
+        Maintenance record = validRecord();
+        record.setId(11L);
+        when(maintenanceRepository.findById(11L)).thenReturn(Optional.of(record));
+        when(maintenanceRepository.save(any(Maintenance.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        Maintenance updated = service.logDowntime(11L, 4.5);
+        org.junit.jupiter.api.Assertions.assertEquals(4.5, updated.getDowntimeHours());
+        verify(maintenanceRepository).save(record);
+    }
+
+    @Test
+    void updatesStatusWithCustomDowntimeAndResolution() {
+        Maintenance record = validRecord();
+        record.setId(12L);
+        record.setStatus("IN_PROGRESS");
+        record.setStartedAt(LocalDateTime.now().minusHours(2));
+
+        when(maintenanceRepository.findById(12L)).thenReturn(Optional.of(record));
+        when(maintenanceRepository.save(any(Maintenance.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        Maintenance completed = service.updateStatus(12L, "COMPLETED", 2.0, "Replaced optical filter");
+
+        org.junit.jupiter.api.Assertions.assertEquals("COMPLETED", completed.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(2.0, completed.getDowntimeHours());
+        org.junit.jupiter.api.Assertions.assertEquals("Replaced optical filter", completed.getResolutionNotes());
+        org.junit.jupiter.api.Assertions.assertNotNull(completed.getCompletedAt());
+    }
+
     private Maintenance validRecord() {
         Maintenance record = new Maintenance();
         record.setEquipmentId(2L);

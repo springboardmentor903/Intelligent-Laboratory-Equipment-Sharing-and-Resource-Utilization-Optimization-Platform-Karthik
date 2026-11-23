@@ -18,15 +18,23 @@ public interface MaintenanceRepository extends JpaRepository<Maintenance, Long> 
 
     List<Maintenance> findByPriority(String priority);
 
+    List<Maintenance> findByMaintenanceType(String maintenanceType);
 
     long countByStatus(String status);
 
     long countByPriority(String priority);
 
+    long countByMaintenanceType(String maintenanceType);
+
+    List<Maintenance> findByAssignedToOrderByReportedAtDesc(Long assignedTo);
 
     List<Maintenance> findByReportedAtBetween(
             java.time.LocalDateTime start,
             java.time.LocalDateTime end
     );
 
+    List<Maintenance> findByScheduledDateBetween(
+            java.time.LocalDateTime start,
+            java.time.LocalDateTime end
+    );
 }

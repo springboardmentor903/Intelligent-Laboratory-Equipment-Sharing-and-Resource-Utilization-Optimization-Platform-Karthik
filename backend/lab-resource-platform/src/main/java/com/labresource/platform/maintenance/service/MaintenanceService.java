@@ -86,19 +86,37 @@ public class MaintenanceService {
             throw new IllegalArgumentException("Invalid maintenance priority");
         }
 
+        String type = maintenance.getMaintenanceType() == null || maintenance.getMaintenanceType().isBlank()
+                ? "CORRECTIVE" : maintenance.getMaintenanceType().trim().toUpperCase();
+        if (!List.of("PREVENTIVE", "CORRECTIVE", "CALIBRATION", "INSPECTION").contains(type)) {
+            type = "CORRECTIVE";
+        }
+        maintenance.setMaintenanceType(type);
+
         maintenance.setPriority(priority);
         maintenance.setId(null);
-        maintenance.setStatus("REPORTED");
         maintenance.setReportedAt(LocalDateTime.now());
         maintenance.setStartedAt(null);
         maintenance.setCompletedAt(null);
-        maintenance.setAssignedTo(null);
         maintenance.setResolutionNotes(null);
+
+        if (maintenance.getAssignedTo() != null) {
+            if (!userRepository.existsById(maintenance.getAssignedTo())) {
+                throw new IllegalArgumentException("Assigned technician not found");
+            }
+            maintenance.setStatus("ASSIGNED");
+        } else {
+            maintenance.setStatus("REPORTED");
+        }
 
         return maintenanceRepository.save(maintenance);
     }
 
     public Maintenance updateStatus(Long id, String status) {
+        return updateStatus(id, status, null, null);
+    }
+
+    public Maintenance updateStatus(Long id, String status, Double customDowntime, String resolutionNotes) {
         Maintenance maintenance = getMaintenanceById(id);
 
         if (status == null || status.isBlank()) {
@@ -123,30 +141,72 @@ public class MaintenanceService {
                             + maintenance.getStatus() + " to " + normalizedStatus);
         }
 
+        if ("IN_PROGRESS".equals(normalizedStatus)) {
+            if (maintenance.getStartedAt() == null) {
+                maintenance.setStartedAt(LocalDateTime.now());
+            }
+            updateEquipmentStatus(maintenance.getEquipmentId(), "MAINTENANCE");
+        }
 
         if ("COMPLETED".equals(normalizedStatus)) {
             LocalDateTime completedAt = LocalDateTime.now();
             maintenance.setCompletedAt(completedAt);
 
-            if (maintenance.getStartedAt() != null) {
+            if (customDowntime != null && customDowntime >= 0) {
+                maintenance.setDowntimeHours(customDowntime);
+            } else if (maintenance.getStartedAt() != null) {
                 double downtime = java.time.Duration.between(
                         maintenance.getStartedAt(),
                         completedAt
                 ).toMinutes() / 60.0;
-
-                maintenance.setDowntimeHours(downtime);
+                maintenance.setDowntimeHours(Math.round(downtime * 10.0) / 10.0);
             }
+            if (resolutionNotes != null && !resolutionNotes.isBlank()) {
+                maintenance.setResolutionNotes(resolutionNotes.trim());
+            }
+            restoreEquipmentStatusIfMaintenance(maintenance.getEquipmentId());
         }
 
-
-        if ("IN_PROGRESS".equals(normalizedStatus)
-                && maintenance.getStartedAt() == null) {
-            maintenance.setStartedAt(LocalDateTime.now());
+        if ("CANCELLED".equals(normalizedStatus)) {
+            restoreEquipmentStatusIfMaintenance(maintenance.getEquipmentId());
         }
 
-        return maintenanceRepository.save(
-                updateMaintenanceStatus(maintenance, normalizedStatus)
-        );
+        maintenance.setStatus(normalizedStatus);
+        return maintenanceRepository.save(maintenance);
+    }
+
+    public Maintenance logDowntime(Long id, Double downtimeHours) {
+        if (downtimeHours == null || downtimeHours < 0) {
+            throw new IllegalArgumentException("Downtime hours must be a non-negative number");
+        }
+        Maintenance maintenance = getMaintenanceById(id);
+        maintenance.setDowntimeHours(downtimeHours);
+        return maintenanceRepository.save(maintenance);
+    }
+
+    private void updateEquipmentStatus(Long equipmentId, String status) {
+        if (equipmentId == null) return;
+        try {
+            equipmentRepository.findById(equipmentId).ifPresent(eq -> {
+                eq.setStatus(status);
+                equipmentRepository.save(eq);
+            });
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void restoreEquipmentStatusIfMaintenance(Long equipmentId) {
+        if (equipmentId == null) return;
+        try {
+            equipmentRepository.findById(equipmentId).ifPresent(eq -> {
+                if ("MAINTENANCE".equalsIgnoreCase(eq.getStatus())
+                        || "UNDER_MAINTENANCE".equalsIgnoreCase(eq.getStatus())) {
+                    eq.setStatus("AVAILABLE");
+                    equipmentRepository.save(eq);
+                }
+            });
+        } catch (Exception ignored) {
+        }
     }
 
     private boolean isAllowedTransition(Maintenance maintenance, String target) {

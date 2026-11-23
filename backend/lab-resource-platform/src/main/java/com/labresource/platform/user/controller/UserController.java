@@ -74,6 +74,22 @@ public class UserController {
         return ResponseEntity.ok(userToMap(user));
     }
 
+    @GetMapping("/technicians")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    public ResponseEntity<List<Map<String, Object>>> getTechnicians(Authentication authentication) {
+        Long institutionId = resourceAccess.scopedInstitutionId(null, authentication);
+        List<User> technicians = userService.getApprovedTechnicians(institutionId);
+        List<Map<String, Object>> result = technicians.stream()
+                .map(u -> Map.<String, Object>of(
+                        "id", u.getId(),
+                        "fullName", u.getFullName() != null ? u.getFullName() : "Technician #" + u.getId(),
+                        "email", u.getEmail(),
+                        "institutionId", u.getInstitutionId() != null ? u.getInstitutionId() : 0L
+                ))
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
     @PatchMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateCurrentProfile(

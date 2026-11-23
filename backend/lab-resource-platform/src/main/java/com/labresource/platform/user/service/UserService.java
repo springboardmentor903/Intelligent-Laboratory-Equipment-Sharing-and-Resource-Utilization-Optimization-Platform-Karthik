@@ -197,6 +197,23 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public List<User> getApprovedTechnicians(Long institutionId) {
+        Role techRole = roleRepository.findByName("LAB_TECHNICIAN").orElse(null);
+        if (techRole == null) return List.of();
+
+        List<Long> techUserIds = userRoleRepository.findByRoleId(techRole.getId()).stream()
+                .map(UserRole::getUserId)
+                .toList();
+
+        if (techUserIds.isEmpty()) return List.of();
+
+        return userRepository.findAllById(techUserIds).stream()
+                .filter(u -> Boolean.TRUE.equals(u.getMembershipApproved())
+                        || "APPROVED".equalsIgnoreCase(u.getMembershipStatus()))
+                .filter(u -> institutionId == null || Objects.equals(institutionId, u.getInstitutionId()))
+                .toList();
+    }
+
     public List<PendingMembershipResponse> getPendingSystemAdmins() {
         return userRepository.findByRequestedRoleAndMembershipStatus("SYSTEM_ADMIN", "PENDING").stream()
                 .map(u -> new PendingMembershipResponse(

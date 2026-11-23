@@ -35,17 +35,29 @@ public class CalibrationRecord {
     @JoinColumn(name = "equipment_id", nullable = false)
     private Equipment equipment;
 
-    @Column(name = "calibration_date", nullable = false)
+    @Column(name = "calibration_date")
     private LocalDate calibrationDate;
 
     @Column(name = "next_due_date", nullable = false)
     private LocalDate nextDueDate;
 
-    @Column(nullable = false, length = 30)
+    @Column(length = 30)
     private String result;
 
     @Column(length = 1000)
     private String notes;
+
+    @Column(name = "status", length = 30)
+    private String status = "COMPLETED";
+
+    @Column(name = "assigned_to")
+    private Long assignedTo;
+
+    @Column(name = "certificate_number", length = 100)
+    private String certificateNumber;
+
+    @Column(name = "scheduled_date")
+    private LocalDate scheduledDate;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -53,5 +65,10 @@ public class CalibrationRecord {
     @JsonProperty(value = "equipmentId", access = JsonProperty.Access.READ_ONLY)
     public Long getEquipmentId() {
         return equipment == null ? null : equipment.getId();
+    }
+
+    @JsonProperty(value = "equipmentName", access = JsonProperty.Access.READ_ONLY)
+    public String getEquipmentName() {
+        return equipment == null ? null : equipment.getName();
     }
 }

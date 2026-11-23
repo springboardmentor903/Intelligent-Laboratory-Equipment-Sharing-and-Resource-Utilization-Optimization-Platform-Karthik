@@ -57,4 +57,13 @@ public class Maintenance {
 
     @Column(length = 1000)
     private String resolutionNotes;
+
+    @Column(name = "maintenance_type", length = 30)
+    private String maintenanceType = "CORRECTIVE";
+
+    @Column(name = "scheduled_date")
+    private LocalDateTime scheduledDate;
+
+    @Column(name = "cost")
+    private Double cost;
 }

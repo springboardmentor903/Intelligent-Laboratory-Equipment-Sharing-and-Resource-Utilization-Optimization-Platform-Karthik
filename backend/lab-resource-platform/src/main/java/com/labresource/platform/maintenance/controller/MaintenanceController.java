@@ -94,6 +94,12 @@ public class MaintenanceController {
             Authentication authentication) {
         try {
             maintenance.setReportedBy(resourceAccess.currentUserId(authentication));
+            if (maintenance.getAssignedTo() != null) {
+                if (!resourceAccess.hasAnyRole(authentication, "LAB_MANAGER", "INSTITUTION_ADMIN", "SYSTEM_ADMIN")
+                        || !resourceAccess.isTechnician(maintenance.getAssignedTo())) {
+                    maintenance.setAssignedTo(null);
+                }
+            }
             Maintenance created =
                     maintenanceService.createMaintenance(maintenance);
 
@@ -104,20 +110,48 @@ public class MaintenanceController {
         }
     }
 
+    @GetMapping("/my-tasks")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    public ResponseEntity<List<Maintenance>> getMyAssignedTasks(Authentication authentication) {
+        Long currentUserId = resourceAccess.currentUserId(authentication);
+        if (currentUserId == null) return ResponseEntity.ok(List.of());
+        return scoped(maintenanceService.getByTechnician(currentUserId));
+    }
+
     @PatchMapping("/{id}/status")
     @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessMaintenance(#id, authentication)")
     public ResponseEntity<?> updateStatus(
             @PathVariable Long id,
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, Object> request) {
         try {
+            String status = request.get("status") != null ? request.get("status").toString() : null;
+            Double downtimeHours = null;
+            if (request.containsKey("downtimeHours") && request.get("downtimeHours") != null) {
+                downtimeHours = Double.valueOf(request.get("downtimeHours").toString());
+            }
+            String resolutionNotes = request.get("resolutionNotes") != null
+                    ? request.get("resolutionNotes").toString() : null;
+
             return ResponseEntity.ok(
-                    maintenanceService.updateStatus(
-                            id, request.get("status")
-                    )
+                    maintenanceService.updateStatus(id, status, downtimeHours, resolutionNotes)
             );
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{id}/downtime")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessMaintenance(#id, authentication)")
+    public ResponseEntity<?> logDowntime(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request) {
+        try {
+            Double downtime = request.get("downtimeHours") != null
+                    ? Double.valueOf(request.get("downtimeHours").toString()) : null;
+            return ResponseEntity.ok(maintenanceService.logDowntime(id, downtime));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -189,6 +223,14 @@ public class MaintenanceController {
         summary.put(
                 "criticalPriority",
                 all.stream().filter(record -> "CRITICAL".equals(record.getPriority())).count()
+        );
+        summary.put(
+                "preventive",
+                all.stream().filter(record -> "PREVENTIVE".equalsIgnoreCase(record.getMaintenanceType())).count()
+        );
+        summary.put(
+                "corrective",
+                all.stream().filter(record -> "CORRECTIVE".equalsIgnoreCase(record.getMaintenanceType()) || record.getMaintenanceType() == null).count()
         );
 
         return ResponseEntity.ok(summary);
