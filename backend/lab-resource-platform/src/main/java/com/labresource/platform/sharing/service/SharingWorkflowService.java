@@ -81,9 +81,28 @@ public class SharingWorkflowService {
             BigDecimal feePerHour,
             BigDecimal externalSharePercentage,
             Integer minimumNoticeHours,
+            Integer minimumBookingNoticeHours,
             Integer maximumBookingHours,
+            Integer maximumBookingDuration,
             String terms,
-            Boolean active) {}
+            String sharingTerms,
+            Boolean active) {
+        public ListingInput(BigDecimal feePerHour, BigDecimal externalSharePercentage, Integer minimumNoticeHours, Integer maximumBookingHours, String terms, Boolean active) {
+            this(feePerHour, externalSharePercentage, minimumNoticeHours, minimumNoticeHours, maximumBookingHours, maximumBookingHours, terms, terms, active);
+        }
+
+        public Integer effectiveMinimumNoticeHours() {
+            return minimumBookingNoticeHours != null ? minimumBookingNoticeHours : minimumNoticeHours;
+        }
+
+        public Integer effectiveMaximumBookingHours() {
+            return maximumBookingDuration != null ? maximumBookingDuration : maximumBookingHours;
+        }
+
+        public String effectiveTerms() {
+            return sharingTerms != null ? sharingTerms : terms;
+        }
+    }
 
     public record RequestInput(
             Long equipmentId,
@@ -135,11 +154,14 @@ public class SharingWorkflowService {
         if (!Boolean.TRUE.equals(e.getShareable())) {
             throw new IllegalArgumentException("Mark equipment as shareable first");
         }
+        Integer minNotice = in.effectiveMinimumNoticeHours();
+        Integer maxHours = in.effectiveMaximumBookingHours();
+        String terms = in.effectiveTerms();
         if (in.feePerHour() == null || in.feePerHour().signum() < 0
                 || in.externalSharePercentage() == null || in.externalSharePercentage().signum() < 0
                 || in.externalSharePercentage().compareTo(BigDecimal.valueOf(100)) > 0
-                || in.minimumNoticeHours() == null || in.minimumNoticeHours() < 0
-                || in.maximumBookingHours() == null || in.maximumBookingHours() < 1) {
+                || minNotice == null || minNotice < 0
+                || maxHours == null || maxHours < 1) {
             throw new IllegalArgumentException("Listing values are invalid");
         }
 
@@ -147,10 +169,27 @@ public class SharingWorkflowService {
         l.setEquipmentId(id);
         l.setFeePerHour(in.feePerHour());
         l.setExternalSharePercentage(in.externalSharePercentage());
-        l.setMinimumNoticeHours(in.minimumNoticeHours());
-        l.setMaximumBookingHours(in.maximumBookingHours());
-        l.setTerms(in.terms() == null ? "" : in.terms());
+        l.setMinimumNoticeHours(minNotice);
+        l.setMaximumBookingHours(maxHours);
+        l.setTerms(terms == null ? "" : terms);
         if (in.active() != null) l.setActive(in.active());
+        l.setUpdatedAt(LocalDateTime.now());
+        return listings.save(l);
+    }
+
+    @Transactional
+    public SharingListing setListingActive(Long id, boolean active, String email) {
+        User u = actor(email);
+        Equipment e = item(id);
+        if (!sys(u) && (!role(u, "INSTITUTION_ADMIN") || !Objects.equals(u.getInstitutionId(), e.getInstitutionId()))) {
+            throw new SecurityException("Owner Institution Administrator required");
+        }
+        if (active && !Boolean.TRUE.equals(e.getShareable())) {
+            throw new IllegalArgumentException("Equipment must be marked shareable before activating listing");
+        }
+        SharingListing l = listings.findByEquipmentId(id)
+                .orElseThrow(() -> new IllegalArgumentException("Sharing listing not found for equipment " + id));
+        l.setActive(active);
         l.setUpdatedAt(LocalDateTime.now());
         return listings.save(l);
     }
@@ -333,6 +372,44 @@ public class SharingWorkflowService {
             m.put("expired", a.getEndDate().isBefore(LocalDateTime.now()));
             return m;
         }).toList();
+    }
+
+    public Map<String, Object> getAgreement(Long id, String email) {
+        User u = actor(email);
+        SharingAgreement a = agreements.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Agreement not found"));
+        boolean system = sys(u);
+        boolean ownerAdmin = role(u, "INSTITUTION_ADMIN") && Objects.equals(u.getInstitutionId(), a.getOwnerInstitutionId());
+        boolean partnerAdmin = role(u, "INSTITUTION_ADMIN") && Objects.equals(u.getInstitutionId(), a.getPartnerInstitutionId());
+        boolean hasGrant = grants.findByAgreementIdAndUserId(id, u.getId()).stream().anyMatch(g -> "ACTIVE".equals(g.getStatus()));
+
+        if (!system && !ownerAdmin && !partnerAdmin && !hasGrant) {
+            throw new SecurityException("You do not have permission to view this agreement");
+        }
+
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("agreement", a);
+        m.put("equipment", equipment.findById(a.getEquipmentId()).orElse(null));
+        m.put("listing", listings.findByEquipmentId(a.getEquipmentId()).orElse(null));
+        m.put("grants", grants.findByAgreementId(a.getId()));
+        m.put("expired", a.getEndDate().isBefore(LocalDateTime.now()));
+        return m;
+    }
+
+    public List<SharingAccessGrant> getAgreementGrants(Long agreementId, String email) {
+        User u = actor(email);
+        SharingAgreement a = agreements.findById(agreementId)
+                .orElseThrow(() -> new IllegalArgumentException("Agreement not found"));
+        boolean system = sys(u);
+        boolean ownerAdmin = role(u, "INSTITUTION_ADMIN") && Objects.equals(u.getInstitutionId(), a.getOwnerInstitutionId());
+        boolean partnerAdmin = role(u, "INSTITUTION_ADMIN") && Objects.equals(u.getInstitutionId(), a.getPartnerInstitutionId());
+        boolean hasGrant = grants.findByAgreementIdAndUserId(agreementId, u.getId()).stream().anyMatch(g -> "ACTIVE".equals(g.getStatus()));
+
+        if (!system && !ownerAdmin && !partnerAdmin && !hasGrant) {
+            throw new SecurityException("You do not have permission to view grants for this agreement");
+        }
+
+        return grants.findByAgreementId(agreementId);
     }
 
     public List<Map<String, Object>> sharedAccess(String email) {

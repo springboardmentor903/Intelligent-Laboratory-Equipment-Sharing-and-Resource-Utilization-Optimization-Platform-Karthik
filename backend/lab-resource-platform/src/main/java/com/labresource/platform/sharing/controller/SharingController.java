@@ -3,15 +3,15 @@ package com.labresource.platform.sharing.controller;
 import com.labresource.platform.equipment.entity.Equipment;
 import com.labresource.platform.equipment.repository.EquipmentRepository;
 import com.labresource.platform.institution.repository.InstitutionRepository;
-import com.labresource.platform.sharing.entity.SharingListing;
-import com.labresource.platform.sharing.repository.SharingListingRepository;
-import com.labresource.platform.sharing.service.SharingWorkflowService;
-import com.labresource.platform.sharing.entity.SharingRequest;
-import com.labresource.platform.sharing.entity.SharingAgreement;
 import com.labresource.platform.sharing.entity.SharingAccessGrant;
-import com.labresource.platform.sharing.repository.SharingRequestRepository;
-import com.labresource.platform.sharing.repository.SharingAgreementRepository;
+import com.labresource.platform.sharing.entity.SharingAgreement;
+import com.labresource.platform.sharing.entity.SharingListing;
+import com.labresource.platform.sharing.entity.SharingRequest;
 import com.labresource.platform.sharing.repository.SharingAccessGrantRepository;
+import com.labresource.platform.sharing.repository.SharingAgreementRepository;
+import com.labresource.platform.sharing.repository.SharingListingRepository;
+import com.labresource.platform.sharing.repository.SharingRequestRepository;
+import com.labresource.platform.sharing.service.SharingWorkflowService;
 import com.labresource.platform.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,37 +20,368 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.*;
 
-@RestController @RequestMapping("/api/sharing")
+@RestController
+@RequestMapping("/api/sharing")
 public class SharingController {
- private final SharingListingRepository listings; private final EquipmentRepository equipment; private final UserRepository users; private final InstitutionRepository institutions; private final SharingWorkflowService workflow; private final SharingRequestRepository requests; private final SharingAgreementRepository agreements; private final SharingAccessGrantRepository grants;
- public SharingController(SharingListingRepository listings,EquipmentRepository equipment,UserRepository users,InstitutionRepository institutions,SharingWorkflowService workflow,SharingRequestRepository requests,SharingAgreementRepository agreements,SharingAccessGrantRepository grants){this.listings=listings;this.equipment=equipment;this.users=users;this.institutions=institutions;this.workflow=workflow;this.requests=requests;this.agreements=agreements;this.grants=grants;}
- @GetMapping("/listings") @PreAuthorize("isAuthenticated()")
- public ResponseEntity<?> discover(@RequestParam(required=false) Long institutionId,@RequestParam(required=false) String category,@RequestParam(required=false) String keyword,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="12") int size,Authentication auth) {
-  var viewer=users.findByEmail(auth.getName().trim().toLowerCase()).orElseThrow();
-  Page<SharingListing> found=listings.discover(institutionId,blank(category),blank(keyword),viewer.getInstitutionId(),PageRequest.of(Math.max(0,page),Math.min(50,Math.max(1,size)),Sort.by("id").descending()));
-  List<Long> equipmentIds=found.getContent().stream().map(SharingListing::getEquipmentId).toList();
-  Map<Long,Equipment> equipmentById=new HashMap<>();equipment.findAllById(equipmentIds).forEach(e->equipmentById.put(e.getId(),e));
-  List<Long> institutionIds=equipmentById.values().stream().map(Equipment::getInstitutionId).distinct().toList();
-  Map<Long,String> institutionNames=new HashMap<>();institutions.findAllById(institutionIds).forEach(i->institutionNames.put(i.getId(),i.getName()));
-  Map<Long,SharingRequest> latest=new HashMap<>();requests.findByRequesterIdOrderByCreatedAtDesc(viewer.getId()).forEach(r->latest.putIfAbsent(r.getEquipmentId(),r));
-  Map<Long,SharingAgreement> active=new HashMap<>();List<Long> agreementIds=grants.findByUserId(viewer.getId()).stream().filter(g->"ACTIVE".equals(g.getStatus())).map(SharingAccessGrant::getAgreementId).distinct().toList();
-  agreements.findAllById(agreementIds).stream().filter(a->"ACTIVE".equals(a.getStatus())&&a.getEndDate().isAfter(java.time.LocalDateTime.now())).forEach(a->active.putIfAbsent(a.getEquipmentId(),a));
-  List<Map<String,Object>> content=new ArrayList<>();for(SharingListing listing:found){Equipment e=equipmentById.get(listing.getEquipmentId());if(e==null)continue;Map<String,Object> row=new LinkedHashMap<>();row.put("listingId",listing.getId());row.put("equipmentId",e.getId());row.put("equipmentName",e.getName());row.put("assetTag",e.getAssetTag());row.put("category",e.getCategory());row.put("description",e.getDescription());row.put("ownerInstitutionId",e.getInstitutionId());row.put("ownerInstitution",institutionNames.getOrDefault(e.getInstitutionId(),""));row.put("feePerHour",listing.getFeePerHour());row.put("externalSharePercentage",listing.getExternalSharePercentage());row.put("minimumNoticeHours",listing.getMinimumNoticeHours());row.put("maximumBookingHours",listing.getMaximumBookingHours());row.put("terms",listing.getTerms());SharingAgreement agreement=active.get(e.getId());SharingRequest request=latest.get(e.getId());row.put("requestStatus",agreement!=null?"ACTIVE":request==null?null:request.getStatus());row.put("agreementId",agreement==null?null:agreement.getId());row.put("agreementEndDate",agreement==null?null:agreement.getEndDate());content.add(row);}
-  return ResponseEntity.ok(Map.of("content",content,"page",found.getNumber(),"size",found.getSize(),"totalElements",found.getTotalElements(),"totalPages",found.getTotalPages()));
- }
- @GetMapping("/equipment/{equipmentId}/listing") @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')") public ResponseEntity<?> listing(@PathVariable Long equipmentId,Authentication auth){Equipment e=equipment.findById(equipmentId).orElseThrow();var u=users.findByEmail(auth.getName().trim().toLowerCase()).orElseThrow();if(!auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_SYSTEM_ADMIN"))&&!Objects.equals(e.getInstitutionId(),u.getInstitutionId()))return ResponseEntity.status(403).body(Map.of("message","Only the owner institution administrator can manage this listing."));return ResponseEntity.of(listings.findByEquipmentId(equipmentId));}
- @GetMapping("/manageable-equipment") @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')") public ResponseEntity<?> manageableEquipment(Authentication auth){var u=users.findByEmail(auth.getName().trim().toLowerCase()).orElseThrow();boolean system=auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_SYSTEM_ADMIN"));return ResponseEntity.ok(system?equipment.findAll():equipment.findByInstitutionId(u.getInstitutionId()));}
- @PatchMapping("/equipment/{equipmentId}/shareable") @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')") @org.springframework.transaction.annotation.Transactional public ResponseEntity<?> shareable(@PathVariable Long equipmentId,@RequestBody Map<String,Boolean> body,Authentication auth){Equipment e=equipment.findById(equipmentId).orElseThrow();var u=users.findByEmail(auth.getName().trim().toLowerCase()).orElseThrow();boolean system=auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_SYSTEM_ADMIN"));if(!system&&!Objects.equals(e.getInstitutionId(),u.getInstitutionId()))return ResponseEntity.status(403).body(Map.of("message","Owner institution administrator required"));e.setShareable(Boolean.TRUE.equals(body.get("shareable")));if(!e.getShareable())listings.findByEquipmentId(equipmentId).ifPresent(listing->{listing.setActive(false);listings.save(listing);});return ResponseEntity.ok(equipment.save(e));}
- @PutMapping("/equipment/{equipmentId}/listing") @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')") public ResponseEntity<?> saveListing(@PathVariable Long equipmentId,@RequestBody SharingWorkflowService.ListingInput input,Authentication auth){try{return ResponseEntity.ok(workflow.saveListing(equipmentId,input,auth.getName()));}catch(SecurityException e){return ResponseEntity.status(403).body(Map.of("message",e.getMessage()));}catch(IllegalArgumentException e){return ResponseEntity.badRequest().body(Map.of("message",e.getMessage()));}}
- @PostMapping("/requests") @PreAuthorize("hasAnyRole('RESEARCHER_STUDENT','DEPARTMENT_HEAD')") public ResponseEntity<?> submit(@RequestBody SharingWorkflowService.RequestInput input,Authentication auth){try{return ResponseEntity.status(201).body(workflow.submit(input,auth.getName()));}catch(SecurityException e){return ResponseEntity.status(403).body(Map.of("message",e.getMessage()));}catch(IllegalArgumentException | IllegalStateException e){return ResponseEntity.badRequest().body(Map.of("message",e.getMessage()));}}
- @GetMapping("/requests") @PreAuthorize("isAuthenticated()") public ResponseEntity<?> requests(@RequestParam(defaultValue="mine")String view,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="12")int size,Authentication auth){try{Page<SharingRequest> result=workflow.requestsPage(view,auth.getName(),page,size);return ResponseEntity.ok(Map.of("content",result.getContent(),"page",result.getNumber(),"size",result.getSize(),"totalElements",result.getTotalElements(),"totalPages",result.getTotalPages()));}catch(SecurityException e){return ResponseEntity.status(403).body(Map.of("message",e.getMessage()));}}
- @PostMapping("/requests/{id}/decision") @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')") public ResponseEntity<?> decide(@PathVariable Long id,@RequestBody Map<String,String> body,Authentication auth){try{java.time.LocalTime start=body.get("allowedStartTime")==null||body.get("allowedStartTime").isBlank()?null:java.time.LocalTime.parse(body.get("allowedStartTime"));java.time.LocalTime end=body.get("allowedEndTime")==null||body.get("allowedEndTime").isBlank()?null:java.time.LocalTime.parse(body.get("allowedEndTime"));return ResponseEntity.ok(workflow.decide(id,body.getOrDefault("action",""),body.get("remarks"),start,end,auth.getName()));}catch(SecurityException e){return ResponseEntity.status(403).body(Map.of("message",e.getMessage()));}catch(IllegalArgumentException e){return ResponseEntity.badRequest().body(Map.of("message",e.getMessage()));}}
- @PostMapping("/requests/{id}/withdraw") @PreAuthorize("isAuthenticated()") public ResponseEntity<?> withdraw(@PathVariable Long id,Authentication auth){try{return ResponseEntity.ok(workflow.withdraw(id,auth.getName()));}catch(SecurityException e){return ResponseEntity.status(403).body(Map.of("message",e.getMessage()));}}
- @GetMapping("/agreements") @PreAuthorize("isAuthenticated()") public ResponseEntity<?> agreements(Authentication auth){return ResponseEntity.ok(workflow.agreements(auth.getName()));}
- @GetMapping("/my-access") @PreAuthorize("isAuthenticated()") public ResponseEntity<?> myAccess(Authentication auth){return ResponseEntity.ok(workflow.sharedAccess(auth.getName()));}
- @PostMapping("/agreements/{id}/revoke") @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')") public ResponseEntity<?> revoke(@PathVariable Long id,@RequestBody Map<String,String> body,Authentication auth){try{return ResponseEntity.ok(workflow.revokeAgreement(id,body.get("reason"),auth.getName()));}catch(SecurityException e){return ResponseEntity.status(403).body(Map.of("message",e.getMessage()));}catch(IllegalArgumentException e){return ResponseEntity.badRequest().body(Map.of("message",e.getMessage()));}}
- @PostMapping("/grants/{id}/revoke") @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')") public ResponseEntity<?> revokeGrant(@PathVariable Long id,@RequestBody Map<String,String> body,Authentication auth){try{return ResponseEntity.ok(workflow.revokeGrant(id,body.get("reason"),auth.getName()));}catch(SecurityException e){return ResponseEntity.status(403).body(Map.of("message",e.getMessage()));}catch(IllegalArgumentException e){return ResponseEntity.badRequest().body(Map.of("message",e.getMessage()));}}
- private String blank(String s){return s==null||s.isBlank()?null:s.trim();}
+    private final SharingListingRepository listings;
+    private final EquipmentRepository equipment;
+    private final UserRepository users;
+    private final InstitutionRepository institutions;
+    private final SharingWorkflowService workflow;
+    private final SharingRequestRepository requests;
+    private final SharingAgreementRepository agreements;
+    private final SharingAccessGrantRepository grants;
+
+    public SharingController(
+            SharingListingRepository listings,
+            EquipmentRepository equipment,
+            UserRepository users,
+            InstitutionRepository institutions,
+            SharingWorkflowService workflow,
+            SharingRequestRepository requests,
+            SharingAgreementRepository agreements,
+            SharingAccessGrantRepository grants) {
+        this.listings = listings;
+        this.equipment = equipment;
+        this.users = users;
+        this.institutions = institutions;
+        this.workflow = workflow;
+        this.requests = requests;
+        this.agreements = agreements;
+        this.grants = grants;
+    }
+
+    @GetMapping("/listings")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> discover(
+            @RequestParam(required = false) Long institutionId,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            Authentication auth) {
+        var viewer = users.findByEmail(auth.getName().trim().toLowerCase()).orElseThrow();
+        Page<SharingListing> found = listings.discover(
+                institutionId,
+                blank(category),
+                blank(keyword),
+                viewer.getInstitutionId(),
+                PageRequest.of(Math.max(0, page), Math.min(50, Math.max(1, size)), Sort.by("id").descending()));
+
+        List<Long> equipmentIds = found.getContent().stream().map(SharingListing::getEquipmentId).toList();
+        Map<Long, Equipment> equipmentById = new HashMap<>();
+        equipment.findAllById(equipmentIds).forEach(e -> equipmentById.put(e.getId(), e));
+
+        List<Long> institutionIds = equipmentById.values().stream().map(Equipment::getInstitutionId).distinct().toList();
+        Map<Long, String> institutionNames = new HashMap<>();
+        institutions.findAllById(institutionIds).forEach(i -> institutionNames.put(i.getId(), i.getName()));
+
+        Map<Long, SharingRequest> latest = new HashMap<>();
+        requests.findByRequesterIdOrderByCreatedAtDesc(viewer.getId())
+                .forEach(r -> latest.putIfAbsent(r.getEquipmentId(), r));
+
+        Map<Long, SharingAgreement> active = new HashMap<>();
+        List<Long> agreementIds = grants.findByUserId(viewer.getId()).stream()
+                .filter(g -> "ACTIVE".equals(g.getStatus()))
+                .map(SharingAccessGrant::getAgreementId)
+                .distinct()
+                .toList();
+        agreements.findAllById(agreementIds).stream()
+                .filter(a -> "ACTIVE".equals(a.getStatus()) && a.getEndDate().isAfter(java.time.LocalDateTime.now()))
+                .forEach(a -> active.putIfAbsent(a.getEquipmentId(), a));
+
+        List<Map<String, Object>> content = new ArrayList<>();
+        for (SharingListing listing : found) {
+            Equipment e = equipmentById.get(listing.getEquipmentId());
+            if (e == null) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("listingId", listing.getId());
+            row.put("equipmentId", e.getId());
+            row.put("equipmentName", e.getName());
+            row.put("assetTag", e.getAssetTag());
+            row.put("category", e.getCategory());
+            row.put("description", e.getDescription());
+            row.put("ownerInstitutionId", e.getInstitutionId());
+            row.put("ownerInstitution", institutionNames.getOrDefault(e.getInstitutionId(), ""));
+            row.put("feePerHour", listing.getFeePerHour());
+            row.put("externalSharePercentage", listing.getExternalSharePercentage());
+            row.put("minimumNoticeHours", listing.getMinimumNoticeHours());
+            row.put("minimumBookingNoticeHours", listing.getMinimumNoticeHours());
+            row.put("maximumBookingHours", listing.getMaximumBookingHours());
+            row.put("maximumBookingDuration", listing.getMaximumBookingHours());
+            row.put("terms", listing.getTerms());
+            row.put("sharingTerms", listing.getTerms());
+            row.put("active", listing.getActive());
+
+            SharingAgreement agreement = active.get(e.getId());
+            SharingRequest request = latest.get(e.getId());
+            row.put("requestStatus", agreement != null ? "ACTIVE" : request == null ? null : request.getStatus());
+            row.put("agreementId", agreement == null ? null : agreement.getId());
+            row.put("agreementEndDate", agreement == null ? null : agreement.getEndDate());
+            content.add(row);
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "content", content,
+                "page", found.getNumber(),
+                "size", found.getSize(),
+                "totalElements", found.getTotalElements(),
+                "totalPages", found.getTotalPages()));
+    }
+
+    @GetMapping("/equipment/{equipmentId}/listing")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> listing(@PathVariable Long equipmentId, Authentication auth) {
+        Equipment e = equipment.findById(equipmentId).orElseThrow();
+        var u = users.findByEmail(auth.getName().trim().toLowerCase()).orElseThrow();
+        if (!auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_SYSTEM_ADMIN"))
+                && !Objects.equals(e.getInstitutionId(), u.getInstitutionId())) {
+            return ResponseEntity.status(403).body(Map.of("message", "Only the owner institution administrator can manage this listing."));
+        }
+        return ResponseEntity.of(listings.findByEquipmentId(equipmentId));
+    }
+
+    @GetMapping("/manageable-equipment")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> manageableEquipment(Authentication auth) {
+        var u = users.findByEmail(auth.getName().trim().toLowerCase()).orElseThrow();
+        boolean system = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_SYSTEM_ADMIN"));
+        return ResponseEntity.ok(system ? equipment.findAll() : equipment.findByInstitutionId(u.getInstitutionId()));
+    }
+
+    @PatchMapping("/equipment/{equipmentId}/shareable")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<?> shareable(@PathVariable Long equipmentId, @RequestBody Map<String, Boolean> body, Authentication auth) {
+        Equipment e = equipment.findById(equipmentId).orElseThrow();
+        var u = users.findByEmail(auth.getName().trim().toLowerCase()).orElseThrow();
+        boolean system = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_SYSTEM_ADMIN"));
+        if (!system && !Objects.equals(e.getInstitutionId(), u.getInstitutionId())) {
+            return ResponseEntity.status(403).body(Map.of("message", "Owner institution administrator required"));
+        }
+        e.setShareable(Boolean.TRUE.equals(body.get("shareable")));
+        if (!e.getShareable()) {
+            listings.findByEquipmentId(equipmentId).ifPresent(listing -> {
+                listing.setActive(false);
+                listings.save(listing);
+            });
+        }
+        return ResponseEntity.ok(equipment.save(e));
+    }
+
+    @PutMapping("/equipment/{equipmentId}/listing")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> saveListing(@PathVariable Long equipmentId, @RequestBody SharingWorkflowService.ListingInput input, Authentication auth) {
+        try {
+            return ResponseEntity.ok(workflow.saveListing(equipmentId, input, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/equipment/{equipmentId}/listing")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> createListingPost(@PathVariable Long equipmentId, @RequestBody SharingWorkflowService.ListingInput input, Authentication auth) {
+        return saveListing(equipmentId, input, auth);
+    }
+
+    @PatchMapping("/equipment/{equipmentId}/listing/activate")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> activateListing(@PathVariable Long equipmentId, Authentication auth) {
+        try {
+            return ResponseEntity.ok(workflow.setListingActive(equipmentId, true, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/equipment/{equipmentId}/listing/deactivate")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> deactivateListing(@PathVariable Long equipmentId, Authentication auth) {
+        try {
+            return ResponseEntity.ok(workflow.setListingActive(equipmentId, false, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/equipment/{equipmentId}/listing/status")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> setListingStatus(@PathVariable Long equipmentId, @RequestBody Map<String, Object> body, Authentication auth) {
+        try {
+            boolean active = body.containsKey("active") && Boolean.parseBoolean(String.valueOf(body.get("active")));
+            return ResponseEntity.ok(workflow.setListingActive(equipmentId, active, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/requests")
+    @PreAuthorize("hasAnyRole('RESEARCHER_STUDENT','DEPARTMENT_HEAD')")
+    public ResponseEntity<?> submit(@RequestBody SharingWorkflowService.RequestInput input, Authentication auth) {
+        try {
+            return ResponseEntity.status(201).body(workflow.submit(input, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/requests")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> requests(
+            @RequestParam(defaultValue = "mine") String view,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            Authentication auth) {
+        try {
+            Page<SharingRequest> result = workflow.requestsPage(view, auth.getName(), page, size);
+            return ResponseEntity.ok(Map.of(
+                    "content", result.getContent(),
+                    "page", result.getNumber(),
+                    "size", result.getSize(),
+                    "totalElements", result.getTotalElements(),
+                    "totalPages", result.getTotalPages()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/requests/mine")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> requestsMine(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            Authentication auth) {
+        return requests("mine", page, size, auth);
+    }
+
+    @GetMapping("/requests/outgoing")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> requestsOutgoing(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            Authentication auth) {
+        return requests("outgoing", page, size, auth);
+    }
+
+    @GetMapping("/requests/incoming")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> requestsIncoming(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            Authentication auth) {
+        return requests("incoming", page, size, auth);
+    }
+
+    @GetMapping("/requests/department")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD','INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> requestsDepartment(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            Authentication auth) {
+        return requests("department", page, size, auth);
+    }
+
+    @PostMapping("/requests/{id}/decision")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> decide(@PathVariable Long id, @RequestBody Map<String, String> body, Authentication auth) {
+        try {
+            java.time.LocalTime start = body.get("allowedStartTime") == null || body.get("allowedStartTime").isBlank()
+                    ? null : java.time.LocalTime.parse(body.get("allowedStartTime"));
+            java.time.LocalTime end = body.get("allowedEndTime") == null || body.get("allowedEndTime").isBlank()
+                    ? null : java.time.LocalTime.parse(body.get("allowedEndTime"));
+            return ResponseEntity.ok(workflow.decide(id, body.getOrDefault("action", ""), body.get("remarks"), start, end, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/requests/{id}/withdraw")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> withdraw(@PathVariable Long id, Authentication auth) {
+        try {
+            return ResponseEntity.ok(workflow.withdraw(id, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/agreements")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> agreements(Authentication auth) {
+        return ResponseEntity.ok(workflow.agreements(auth.getName()));
+    }
+
+    @GetMapping("/agreements/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> agreement(@PathVariable Long id, Authentication auth) {
+        try {
+            return ResponseEntity.ok(workflow.getAgreement(id, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/agreements/{id}/grants")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> agreementGrants(@PathVariable Long id, Authentication auth) {
+        try {
+            return ResponseEntity.ok(workflow.getAgreementGrants(id, auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/my-access")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> myAccess(Authentication auth) {
+        return ResponseEntity.ok(workflow.sharedAccess(auth.getName()));
+    }
+
+    @PostMapping("/agreements/{id}/revoke")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> revoke(@PathVariable Long id, @RequestBody Map<String, String> body, Authentication auth) {
+        try {
+            return ResponseEntity.ok(workflow.revokeAgreement(id, body.get("reason"), auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/grants/{id}/revoke")
+    @PreAuthorize("hasAnyRole('INSTITUTION_ADMIN','SYSTEM_ADMIN')")
+    public ResponseEntity<?> revokeGrant(@PathVariable Long id, @RequestBody Map<String, String> body, Authentication auth) {
+        try {
+            return ResponseEntity.ok(workflow.revokeGrant(id, body.get("reason"), auth.getName()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    private String blank(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
 }

@@ -18,14 +18,22 @@ import com.labresource.platform.booking.event.BookingReleasedEvent;
 import com.labresource.platform.utilization.entity.Utilization;
 import com.labresource.platform.utilization.repository.UtilizationRepository;
 import com.labresource.platform.booking.waitlist.repository.WaitlistRepository;
+import com.labresource.platform.sharing.repository.SharingAgreementRepository;
 import com.labresource.platform.sharing.service.ExternalBookingValidator;
+import com.labresource.platform.sharing.service.SharingFeeService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class BookingService {
@@ -45,12 +53,73 @@ public class BookingService {
     @Autowired(required = false)
     private ExternalBookingValidator externalBookingValidator;
 
+    @Autowired(required = false)
+    private SharingAgreementRepository sharingAgreementRepository;
+
+    @Autowired(required = false)
+    private SharingFeeService sharingFeeService;
+
     public void setWaitlistRepository(WaitlistRepository waitlistRepository) {
         this.waitlistRepository = waitlistRepository;
     }
 
     public void setExternalBookingValidator(ExternalBookingValidator externalBookingValidator) {
         this.externalBookingValidator = externalBookingValidator;
+    }
+
+    public void setSharingAgreementRepository(SharingAgreementRepository sharingAgreementRepository) {
+        this.sharingAgreementRepository = sharingAgreementRepository;
+    }
+
+    public void setSharingFeeService(SharingFeeService sharingFeeService) {
+        this.sharingFeeService = sharingFeeService;
+    }
+
+    public void populateFeeDetails(Booking booking) {
+        if (booking == null || booking.getSharingAgreementId() == null || sharingAgreementRepository == null) {
+            return;
+        }
+        sharingAgreementRepository.findById(booking.getSharingAgreementId()).ifPresent(agreement -> {
+            booking.setFeePerHour(agreement.getFeePerHour());
+            if (booking.getStartTime() != null && booking.getEndTime() != null && agreement.getFeePerHour() != null) {
+                long minutes = Duration.between(booking.getStartTime(), booking.getEndTime()).toMinutes();
+                BigDecimal fee = sharingFeeService != null
+                        ? sharingFeeService.calculateFee(minutes, agreement.getFeePerHour())
+                        : BigDecimal.valueOf(minutes).multiply(agreement.getFeePerHour()).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+                booking.setEstimatedFee(fee);
+            }
+        });
+    }
+
+    public void populateFeeDetails(List<Booking> bookingsList) {
+        if (bookingsList == null || bookingsList.isEmpty() || sharingAgreementRepository == null) {
+            return;
+        }
+        List<Long> agreementIds = bookingsList.stream()
+                .map(Booking::getSharingAgreementId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (agreementIds.isEmpty()) return;
+
+        Map<Long, com.labresource.platform.sharing.entity.SharingAgreement> map = new HashMap<>();
+        sharingAgreementRepository.findAllById(agreementIds).forEach(a -> map.put(a.getId(), a));
+
+        for (Booking booking : bookingsList) {
+            if (booking.getSharingAgreementId() != null) {
+                var agreement = map.get(booking.getSharingAgreementId());
+                if (agreement != null) {
+                    booking.setFeePerHour(agreement.getFeePerHour());
+                    if (booking.getStartTime() != null && booking.getEndTime() != null && agreement.getFeePerHour() != null) {
+                        long minutes = Duration.between(booking.getStartTime(), booking.getEndTime()).toMinutes();
+                        BigDecimal fee = sharingFeeService != null
+                                ? sharingFeeService.calculateFee(minutes, agreement.getFeePerHour())
+                                : BigDecimal.valueOf(minutes).multiply(agreement.getFeePerHour()).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+                        booking.setEstimatedFee(fee);
+                    }
+                }
+            }
+        }
     }
 
     public BookingService(
@@ -86,14 +155,18 @@ public class BookingService {
     }
 
     public List<Booking> getAllBookings() {
-        return bookingRepository.findAll();
+        List<Booking> list = bookingRepository.findAll();
+        populateFeeDetails(list);
+        return list;
     }
 
     public Booking getBookingById(Long id) {
-        return bookingRepository.findById(id)
+        Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Booking not found with id: " + id));
+        populateFeeDetails(booking);
+        return booking;
     }
 
     public boolean isUserOwner(Long userId, String email) {
@@ -108,15 +181,21 @@ public class BookingService {
     }
 
     public List<Booking> getBookingsByUser(Long userId) {
-        return bookingRepository.findByUserId(userId);
+        List<Booking> list = bookingRepository.findByUserId(userId);
+        populateFeeDetails(list);
+        return list;
     }
 
     public List<Booking> getBookingsByEquipment(Long equipmentId) {
-        return bookingRepository.findByEquipmentId(equipmentId);
+        List<Booking> list = bookingRepository.findByEquipmentId(equipmentId);
+        populateFeeDetails(list);
+        return list;
     }
 
     public List<Booking> getBookingsByStatus(String status) {
-        return bookingRepository.findByStatus(status.toUpperCase());
+        List<Booking> list = bookingRepository.findByStatus(status.toUpperCase());
+        populateFeeDetails(list);
+        return list;
     }
 
     @Transactional
@@ -199,6 +278,7 @@ public class BookingService {
         booking.setCreatedAt(LocalDateTime.now());
 
         Booking saved = bookingRepository.save(booking);
+        populateFeeDetails(saved);
         recordAudit(saved.getId(), "CREATED", null, saved.getStatus(), authenticatedEmail.trim());
         return saved;
     }
@@ -395,6 +475,7 @@ public class BookingService {
 
         booking.setStatus(normalizedStatus);
         Booking saved = bookingRepository.save(booking);
+        populateFeeDetails(saved);
         String auditActor = (reason != null && !reason.isBlank()) ? actorEmail + " [Reason: " + reason.trim() + "]" : actorEmail;
         recordAudit(saved.getId(), "STATUS_CHANGED", current, normalizedStatus, auditActor);
         if (List.of("REJECTED", "CANCELLED").contains(normalizedStatus)) {
@@ -454,6 +535,7 @@ public class BookingService {
         booking.setStatus("IN_USE");
         equipment.setStatus("BOOKED");
         Booking saved = bookingRepository.save(booking);
+        populateFeeDetails(saved);
         equipmentRepository.save(equipment);
         recordAudit(saved.getId(), "CHECKED_IN", previousStatus, "IN_USE", actor.getEmail());
         publishEquipmentChange(saved.getEquipmentId());
@@ -486,6 +568,7 @@ public class BookingService {
         String previousStatus = booking.getStatus();
         booking.setStatus("COMPLETED");
         Booking saved = bookingRepository.save(booking);
+        populateFeeDetails(saved);
         releaseEquipmentIfAvailable(equipment, saved.getEquipmentId(), now);
         recordAudit(saved.getId(), "CHECKED_OUT", previousStatus, "COMPLETED", actor.getEmail());
         if (actualEnd.isBefore(booking.getEndTime())) {
@@ -532,6 +615,7 @@ public class BookingService {
             closeUsage(usage, booking.getEndTime());
             booking.setStatus("COMPLETED");
             Booking saved = bookingRepository.save(booking);
+            populateFeeDetails(saved);
             releaseEquipmentIfAvailable(equipment, saved.getEquipmentId(), now);
             recordAudit(saved.getId(), "AUTO_COMPLETED", "IN_USE", "COMPLETED", "SYSTEM");
             publishEquipmentChange(saved.getEquipmentId());
@@ -648,6 +732,7 @@ public class BookingService {
         String current = booking.getStatus();
         booking.setStatus("CANCELLED");
         Booking saved = bookingRepository.save(booking);
+        populateFeeDetails(saved);
         recordAudit(saved.getId(), "CANCELLED", current, "CANCELLED", actorEmail);
         publishBookingReleased(saved.getEquipmentId(), saved.getStartTime(), saved.getEndTime());
         publishEquipmentChange(saved.getEquipmentId());

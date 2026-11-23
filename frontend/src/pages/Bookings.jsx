@@ -699,6 +699,16 @@ export default function Bookings() {
                   disabled={submitting}
                 />
               </div>
+
+              {externalAgreement?.agreement?.feePerHour != null && form.startTime && form.endTime && new Date(form.endTime) > new Date(form.startTime) && (
+                <div style={{ gridColumn: '1 / -1', marginTop: '4px', padding: '10px 14px', background: 'var(--surface-secondary, #f8fafc)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '13.5px' }}>
+                  <strong>Estimated Sharing Fee: </strong>
+                  ₹{((Math.round((new Date(form.endTime) - new Date(form.startTime)) / 60000) * Number(externalAgreement.agreement.feePerHour)) / 60).toFixed(2)}
+                  <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>
+                    ({Math.round((new Date(form.endTime) - new Date(form.startTime)) / 60000)} minutes @ ₹{externalAgreement.agreement.feePerHour}/hr)
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="form-field">
@@ -931,11 +941,23 @@ export default function Bookings() {
                     return (
                     <tr key={booking.id}>
                       <td><Link to={`/bookings/${booking.id}`}>#{booking.id}</Link></td>
-                      <td>#{booking.equipmentId ?? '—'}</td>
+                      <td>
+                        #{booking.equipmentId ?? '—'}
+                        {booking.sharingAgreementId != null && (
+                          <span className="sharing-badge-active" style={{ display: 'inline-block', marginLeft: '6px', fontSize: '10px', padding: '1px 5px', verticalAlign: 'middle' }}>
+                            External
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <div className="booking-schedule">
                           <span>{formatDate(booking.startTime)}</span>
                           <small>to {formatDate(booking.endTime)}</small>
+                          {booking.estimatedFee != null && (
+                            <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
+                              Est: ₹{booking.estimatedFee} {booking.feePerHour ? `(@₹${booking.feePerHour}/hr)` : ''}
+                            </small>
+                          )}
                         </div>
                       </td>
                       <td>{booking.purpose || '—'}</td>

@@ -6,10 +6,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -43,6 +45,12 @@ public class Booking {
 
     @Column(name = "sharing_agreement_id")
     private Long sharingAgreementId;
+
+    @Transient
+    private BigDecimal feePerHour;
+
+    @Transient
+    private BigDecimal estimatedFee;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

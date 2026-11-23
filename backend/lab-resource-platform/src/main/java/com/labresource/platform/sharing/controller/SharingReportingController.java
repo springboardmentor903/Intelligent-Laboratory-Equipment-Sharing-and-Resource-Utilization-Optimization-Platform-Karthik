@@ -148,7 +148,17 @@ public class SharingReportingController {
                 .map(h->Map.of("start",h.getRequestedStartTime(),"end",h.getRequestedEndTime(),"type","INTERNAL","hold",true)).toList());
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.labresource.platform.sharing.service.SharingFeeService feeService;
+
+    public void setFeeService(com.labresource.platform.sharing.service.SharingFeeService feeService) {
+        this.feeService = feeService;
+    }
+
     private BigDecimal fee(long minutes,BigDecimal rate) {
+        if (feeService != null) {
+            return feeService.calculateFee(minutes, rate);
+        }
         return BigDecimal.valueOf(minutes).multiply(rate).divide(BigDecimal.valueOf(60),2,RoundingMode.HALF_UP);
     }
     private long operatingMinutes(LocalDateTime start,LocalDateTime end,LocalDateTime windowStart,LocalDateTime windowEnd,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
+import { canManageSharing } from '../access/roleAccess.js'
 import {
   buildEquipmentSearchParams,
   getEditableEquipmentStatuses,
@@ -376,6 +377,94 @@ export default function Equipment() {
 
   const selectedEquipment = equipment.find((item) => item.id === selectedId)
 
+  const isOwnerAdminOrSystemAdmin = useMemo(() => {
+    if (!canManageSharing(user?.roles)) return false
+    if (user?.roles?.includes('SYSTEM_ADMIN')) return true
+    return selectedEquipment?.institutionId != null && String(user?.institutionId) === String(selectedEquipment?.institutionId)
+  }, [user?.roles, user?.institutionId, selectedEquipment?.institutionId])
+
+  const [sharingListing, setSharingListing] = useState({
+    feePerHour: '',
+    externalSharePercentage: 20,
+    minimumNoticeHours: 24,
+    maximumBookingHours: 8,
+    terms: '',
+    active: true,
+  })
+  const [isShareable, setIsShareable] = useState(false)
+  const [sharingLoading, setSharingLoading] = useState(false)
+  const [sharingSaving, setSharingSaving] = useState(false)
+  const [sharingError, setSharingError] = useState('')
+  const [sharingSuccess, setSharingSuccess] = useState('')
+
+  useEffect(() => {
+    if (!selectedId || !isOwnerAdminOrSystemAdmin) return
+    setIsShareable(Boolean(selectedEquipment?.shareable))
+    setSharingLoading(true)
+    setSharingError('')
+    setSharingSuccess('')
+    api.get(`/api/sharing/equipment/${selectedId}/listing`)
+      .then((res) => {
+        if (res.data) {
+          setSharingListing({
+            feePerHour: res.data.feePerHour ?? '',
+            externalSharePercentage: res.data.externalSharePercentage ?? 20,
+            minimumNoticeHours: res.data.minimumNoticeHours ?? 24,
+            maximumBookingHours: res.data.maximumBookingHours ?? 8,
+            terms: res.data.terms ?? '',
+            active: res.data.active ?? true,
+          })
+        }
+      })
+      .catch(() => {
+        setSharingListing({
+          feePerHour: '',
+          externalSharePercentage: 20,
+          minimumNoticeHours: 24,
+          maximumBookingHours: 8,
+          terms: '',
+          active: true,
+        })
+      })
+      .finally(() => setSharingLoading(false))
+  }, [selectedId, isOwnerAdminOrSystemAdmin, selectedEquipment?.shareable])
+
+  async function toggleShareable(checked) {
+    if (!selectedId) return
+    setIsShareable(checked)
+    try {
+      await api.patch(`/api/sharing/equipment/${selectedId}/shareable`, { shareable: checked })
+      setSharingSuccess(checked ? 'Equipment marked shareable.' : 'Equipment is no longer shareable.')
+      if (selectedEquipment) selectedEquipment.shareable = checked
+    } catch (err) {
+      setIsShareable(!checked)
+      setSharingError(errorMessage(err, 'Unable to update shareable status.'))
+    }
+  }
+
+  async function saveSharingListing(e) {
+    e.preventDefault()
+    if (!selectedId || sharingSaving) return
+    setSharingSaving(true)
+    setSharingError('')
+    setSharingSuccess('')
+    try {
+      await api.put(`/api/sharing/equipment/${selectedId}/listing`, {
+        feePerHour: Number(sharingListing.feePerHour),
+        externalSharePercentage: Number(sharingListing.externalSharePercentage),
+        minimumNoticeHours: Number(sharingListing.minimumNoticeHours),
+        maximumBookingHours: Number(sharingListing.maximumBookingHours),
+        terms: sharingListing.terms,
+        active: sharingListing.active,
+      })
+      setSharingSuccess('Sharing listing saved successfully.')
+    } catch (err) {
+      setSharingError(errorMessage(err, 'Unable to save sharing listing.'))
+    } finally {
+      setSharingSaving(false)
+    }
+  }
+
   return (
     <div className="module-page">
       <section className="module-page-heading">
@@ -472,6 +561,11 @@ export default function Equipment() {
                       )}
                       <button type="button" className="secondary-button" disabled={recordsLoading || deletingId != null} onClick={() => selectEquipment(item.id)}>{selectedId === item.id ? 'Refresh records' : 'Calibration & certification'}</button>
                       {permissions.canEdit && <button type="button" className="secondary-button" disabled={equipmentSubmitting || deletingId != null} onClick={() => beginEdit(item)}>Edit</button>}
+                      {canManageSharing(user?.roles) && (user?.roles?.includes('SYSTEM_ADMIN') || String(user?.institutionId) === String(item.institutionId)) && (
+                        <button type="button" className="secondary-button" onClick={() => selectEquipment(item.id)}>
+                          Share this equipment
+                        </button>
+                      )}
                       {permissions.canDelete && status !== 'RETIRED' && <button type="button" className="secondary-button" disabled={deletingId != null || equipmentSubmitting || recordSubmitting} onClick={() => deleteEquipment(item)}>{deletingId === item.id ? 'Retiring…' : 'Retire'}</button>}
                     </div>
                   </article>
@@ -517,6 +611,116 @@ export default function Equipment() {
               )}
             </div>
           </>}
+
+          {isOwnerAdminOrSystemAdmin && (
+            <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700 }}>Share This Equipment</h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+                    Configure inter-institution sharing parameters and publication terms.
+                  </p>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13.5px' }}>
+                  <input
+                    type="checkbox"
+                    checked={isShareable}
+                    onChange={(e) => toggleShareable(e.target.checked)}
+                  />
+                  <span>Mark equipment shareable</span>
+                </label>
+              </div>
+
+              {sharingSuccess && <div className="auth-success" role="status" style={{ marginBottom: '12px' }}>{sharingSuccess}</div>}
+              {sharingError && <div className="module-alert" role="alert" style={{ marginBottom: '12px' }}>{sharingError}</div>}
+
+              {sharingLoading ? (
+                <p>Loading sharing listing…</p>
+              ) : (
+                <form className="booking-form" onSubmit={saveSharingListing}>
+                  <div className="booking-time-grid">
+                    <div className="form-field">
+                      <label htmlFor="sharing-fee">Fee per Hour (₹) *</label>
+                      <input
+                        id="sharing-fee"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        required
+                        placeholder="e.g. 1500"
+                        value={sharingListing.feePerHour}
+                        onChange={(e) => setSharingListing({ ...sharingListing, feePerHour: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label htmlFor="sharing-pct">External Share Target (%) *</label>
+                      <input
+                        id="sharing-pct"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        required
+                        value={sharingListing.externalSharePercentage}
+                        onChange={(e) => setSharingListing({ ...sharingListing, externalSharePercentage: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label htmlFor="sharing-notice">Minimum Notice (Hours) *</label>
+                      <input
+                        id="sharing-notice"
+                        type="number"
+                        min="0"
+                        required
+                        value={sharingListing.minimumNoticeHours}
+                        onChange={(e) => setSharingListing({ ...sharingListing, minimumNoticeHours: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label htmlFor="sharing-duration">Maximum Duration (Hours) *</label>
+                      <input
+                        id="sharing-duration"
+                        type="number"
+                        min="1"
+                        required
+                        value={sharingListing.maximumBookingHours}
+                        onChange={(e) => setSharingListing({ ...sharingListing, maximumBookingHours: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="sharing-terms">Sharing Terms & Usage Conditions</label>
+                    <textarea
+                      id="sharing-terms"
+                      maxLength={2000}
+                      rows={3}
+                      placeholder="Specify safety certifications, lab policies, operator assistance requirements…"
+                      value={sharingListing.terms}
+                      onChange={(e) => setSharingListing({ ...sharingListing, terms: e.target.value })}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px' }}>
+                      <input
+                        type="checkbox"
+                        checked={sharingListing.active}
+                        onChange={(e) => setSharingListing({ ...sharingListing, active: e.target.checked })}
+                      />
+                      <span>Listing active and discoverable</span>
+                    </label>
+                    <button type="submit" className="button button-primary" disabled={sharingSaving || !isShareable}>
+                      {sharingSaving ? 'Saving…' : 'Save Sharing Listing'}
+                    </button>
+                  </div>
+                  {!isShareable && (
+                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px' }}>
+                      Mark equipment as shareable before saving or activating the sharing listing.
+                    </small>
+                  )}
+                </form>
+              )}
+            </div>
+          )}
         </section>
       )}
 

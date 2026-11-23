@@ -57,6 +57,15 @@ export default function BookingDetails() {
           <div><dt>Booking ID</dt><dd>{booking.id}</dd></div><div><dt>Status</dt><dd>{formatBookingStatus(booking.status)}</dd></div>
           <div><dt>Start</dt><dd>{formatDate(booking.startTime)}</dd></div><div><dt>End</dt><dd>{formatDate(booking.endTime)}</dd></div>
           <div><dt>Purpose</dt><dd>{booking.purpose || 'Not provided'}</dd></div>
+          {booking.sharingAgreementId != null && (
+            <div><dt>Sharing Agreement</dt><dd>Agreement #{booking.sharingAgreementId} (External Sharing)</dd></div>
+          )}
+          {booking.feePerHour != null && (
+            <div><dt>Sharing Rate</dt><dd>₹{booking.feePerHour}/hr</dd></div>
+          )}
+          {booking.estimatedFee != null && (
+            <div><dt>Estimated Fee</dt><dd>₹{booking.estimatedFee}</dd></div>
+          )}
         </dl>
         <div className="booking-detail-actions">
           {checkIn.visible && <button type="button" className="button button-primary" disabled={Boolean(busy) || loading || !checkIn.eligible} title={checkIn.reason} onClick={() => runAction('check-in')}>{busy === 'check-in' ? 'Checking in…' : 'Check In'}</button>}
