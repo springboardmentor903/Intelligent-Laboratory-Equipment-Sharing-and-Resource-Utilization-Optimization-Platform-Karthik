@@ -4,6 +4,13 @@ import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
 import { canManageSharing } from '../access/roleAccess.js'
 import { formatAmount, formatSharedTime } from '../access/sharedFormatting.js'
+import {
+  validateRejectionRemarks,
+  validateAllowedHours,
+  buildApprovePayload,
+  buildRejectPayload,
+  getSharingAgreementSummary,
+} from '../access/sharingReviewWorkflow.js'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/react/daygrid'
 import timeGridPlugin from '@fullcalendar/react/timegrid'
@@ -324,7 +331,92 @@ export default function Sharing() {
     setTab(value)
     setFeedback('')
     setError('')
+    closeReviewDrawer()
     setParams(value === 'discover' ? {} : { view: value })
+  }
+
+  const [reviewRequest, setReviewRequest] = useState(null)
+  const [reviewMode, setReviewMode] = useState('APPROVE')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const [approvalRemarks, setApprovalRemarks] = useState('')
+  const [allowedStartTime, setAllowedStartTime] = useState('')
+  const [allowedEndTime, setAllowedEndTime] = useState('')
+  const [rejectRemarks, setRejectRemarks] = useState('')
+
+  function openReviewDrawer(request, mode = 'APPROVE') {
+    setReviewRequest(request)
+    setReviewMode(mode)
+    setReviewError('')
+    setApprovalRemarks('')
+    setAllowedStartTime('')
+    setAllowedEndTime('')
+    setRejectRemarks('')
+  }
+
+  function closeReviewDrawer() {
+    setReviewRequest(null)
+    setReviewError('')
+    setApprovalRemarks('')
+    setAllowedStartTime('')
+    setAllowedEndTime('')
+    setRejectRemarks('')
+  }
+
+  async function handleConfirmApprove(e) {
+    if (e) e.preventDefault()
+    if (!reviewRequest) return
+
+    const hoursValidation = validateAllowedHours(allowedStartTime, allowedEndTime)
+    if (hoursValidation) {
+      setReviewError(hoursValidation)
+      return
+    }
+
+    setReviewSubmitting(true)
+    setReviewError('')
+    try {
+      const payload = buildApprovePayload({
+        remarks: approvalRemarks,
+        allowedStartTime,
+        allowedEndTime,
+      })
+      await api.post(`/api/sharing/requests/${reviewRequest.id}/decision`, payload)
+      setFeedback(`Request #${reviewRequest.id} approved and bilateral sharing agreement created.`)
+      closeReviewDrawer()
+      await load()
+    } catch (err) {
+      setReviewError(message(err))
+      load()
+    } finally {
+      setReviewSubmitting(false)
+    }
+  }
+
+  async function handleConfirmReject(e) {
+    if (e) e.preventDefault()
+    if (!reviewRequest) return
+
+    const remarksValidation = validateRejectionRemarks(rejectRemarks)
+    if (remarksValidation) {
+      setReviewError(remarksValidation)
+      return
+    }
+
+    setReviewSubmitting(true)
+    setReviewError('')
+    try {
+      const payload = buildRejectPayload({ remarks: rejectRemarks })
+      await api.post(`/api/sharing/requests/${reviewRequest.id}/decision`, payload)
+      setFeedback(`Request #${reviewRequest.id} rejected.`)
+      closeReviewDrawer()
+      await load()
+    } catch (err) {
+      setReviewError(message(err))
+      load()
+    } finally {
+      setReviewSubmitting(false)
+    }
   }
 
   async function requestAccess(equipmentId) {
@@ -841,149 +933,424 @@ export default function Sharing() {
               <p>There are no active {tab.replace('-', ' ')} records in this view.</p>
             </div>
           ) : (
-            <div className="sharing-card-grid">
-              {rows.map((value, index) => {
-                const row = value.agreement ? value.agreement : value
-                const eq = value.equipment
-                const ownerManager =
-                  canAdmin &&
-                  (user?.roles?.includes('SYSTEM_ADMIN') ||
-                    String(row.ownerInstitutionId) === String(user?.institutionId))
+            <div className={`sharing-incoming-layout ${tab === 'incoming' && reviewRequest ? 'has-drawer' : ''}`}>
+              <div className="sharing-card-grid">
+                {rows.map((value, index) => {
+                  const row = value.agreement ? value.agreement : value
+                  const eq = value.equipment
+                  const isBeingReviewed = tab === 'incoming' && reviewRequest?.id === row.id
+                  const ownerManager =
+                    canAdmin &&
+                    (user?.roles?.includes('SYSTEM_ADMIN') ||
+                      String(row.ownerInstitutionId) === String(user?.institutionId))
+
+                  return (
+                    <article className={`sharing-card ${isBeingReviewed ? 'sharing-card-active-review' : ''}`} key={row.id || index}>
+                      <div className="sharing-card-header">
+                        <div>
+                          <h2>{eq?.name || `Access Request #${row.id}`}</h2>
+                          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                            ID: #{row.id} · {eq?.assetTag ? `Tag: ${eq.assetTag}` : 'Inter-Institution'}
+                          </p>
+                        </div>
+                        <StatusBadge status={row.status} expired={value.expired} />
+                      </div>
+
+                      <div className="sharing-meta-list">
+                        {row.purpose && (
+                          <div className="sharing-meta-item">
+                            <span>Purpose:</span>
+                            <strong>{row.purpose}</strong>
+                          </div>
+                        )}
+                        <div className="sharing-meta-item">
+                          <span>Period:</span>
+                          <span>{formatSharedTime(row.startDate || row.startTime)} – {formatSharedTime(row.endDate || row.endTime)}</span>
+                        </div>
+                        {row.feePerHour != null && (
+                          <div className="sharing-meta-item">
+                            <span>Fee:</span>
+                            <strong>{formatAmount(row.feePerHour)}/hr</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      {tab === 'mine' && (
+                        <div className="sharing-terms-box">
+                          <p style={{ margin: '0 0 4px' }}>
+                            <strong>Home Review:</strong> {row.requesterReviewedBy ? `Reviewer #${row.requesterReviewedBy} (${row.requesterReviewRemarks || 'Approved'})` : 'Pending'}
+                          </p>
+                          <p style={{ margin: 0 }}>
+                            <strong>Partner Decision:</strong> {row.reviewedBy ? `Reviewer #${row.reviewedBy} (${row.reviewRemarks || 'Approved'})` : 'Awaiting Decision'}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="sharing-card-actions">
+                        {tab === 'mine' && ['PENDING', 'FORWARDED'].includes(row.status) && (
+                          <button
+                            type="button"
+                            className="button-secondary"
+                            onClick={() => withdraw(row.id)}
+                          >
+                            Withdraw Request
+                          </button>
+                        )}
+
+                        {tab === 'outgoing' && (
+                          <>
+                            <button
+                              type="button"
+                              className="button-primary"
+                              onClick={() => action(row.id, 'FORWARD')}
+                            >
+                              Forward to Partner
+                            </button>
+                            <button
+                              type="button"
+                              className="button-secondary"
+                              onClick={() => action(row.id, 'REJECT')}
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+
+                        {tab === 'incoming' && (
+                          <>
+                            <button
+                              type="button"
+                              className="button-primary"
+                              onClick={() => openReviewDrawer(row, 'APPROVE')}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              className="button-secondary"
+                              onClick={() => openReviewDrawer(row, 'REJECT')}
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+
+                        {tab === 'access' && (
+                          <Link
+                            className="button-primary"
+                            to={`/bookings?equipmentId=${eq?.id}&agreementId=${row.id}`}
+                          >
+                            Create Booking
+                          </Link>
+                        )}
+
+                        {tab === 'agreements' && ownerManager && (
+                          <>
+                            <button
+                              type="button"
+                              className="button-secondary"
+                              onClick={() => revoke(`/api/sharing/agreements/${row.id}/revoke`)}
+                            >
+                              Revoke Agreement
+                            </button>
+                            {(value.grants || []).map((grant) => (
+                              <div key={grant.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                                <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                                  Grant #{grant.id}: {grant.status}
+                                </span>
+                                {grant.status === 'ACTIVE' && (
+                                  <button
+                                    type="button"
+                                    className="button-secondary"
+                                    style={{ padding: '3px 8px', fontSize: '11.5px' }}
+                                    onClick={() => revoke(`/api/sharing/grants/${grant.id}/revoke`)}
+                                  >
+                                    Revoke Grant
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+
+                      {(tab === 'agreements' || tab === 'access') && <Fees agreementId={row.id} />}
+                    </article>
+                  )
+                })}
+              </div>
+
+              {/* SLIDE-OVER REVIEW DRAWER FOR INCOMING REQUESTS */}
+              {tab === 'incoming' && reviewRequest && (() => {
+                const summary = getSharingAgreementSummary(
+                  reviewRequest,
+                  managedEquipment.find((m) => m.id === reviewRequest.equipmentId)
+                )
+                const partnerName = reviewRequest.partnerInstitution ||
+                  institutions.find((i) => String(i.id) === String(reviewRequest.requesterInstitutionId))?.name ||
+                  (reviewRequest.requesterInstitutionId ? `Institution #${reviewRequest.requesterInstitutionId}` : 'Partner Institution')
 
                 return (
-                  <article className="sharing-card" key={row.id || index}>
-                    <div className="sharing-card-header">
+                  <aside
+                    className="sharing-review-drawer"
+                    aria-label={`Review Incoming Request #${reviewRequest.id}`}
+                  >
+                    <div className="sharing-review-header">
                       <div>
-                        <h2>{eq?.name || `Access Request #${row.id}`}</h2>
-                        <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                          ID: #{row.id} · {eq?.assetTag ? `Tag: ${eq.assetTag}` : 'Inter-Institution'}
-                        </p>
+                        <h2>Review Request #{reviewRequest.id}</h2>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Equipment Owner Review
+                        </span>
                       </div>
-                      <StatusBadge status={row.status} expired={value.expired} />
-                    </div>
-
-                    <div className="sharing-meta-list">
-                      {row.purpose && (
-                        <div className="sharing-meta-item">
-                          <span>Purpose:</span>
-                          <strong>{row.purpose}</strong>
-                        </div>
-                      )}
-                      <div className="sharing-meta-item">
-                        <span>Period:</span>
-                        <span>{formatSharedTime(row.startDate || row.startTime)} – {formatSharedTime(row.endDate || row.endTime)}</span>
-                      </div>
-                      {row.feePerHour != null && (
-                        <div className="sharing-meta-item">
-                          <span>Fee:</span>
-                          <strong>{formatAmount(row.feePerHour)}/hr</strong>
-                        </div>
-                      )}
-                    </div>
-
-                    {tab === 'mine' && (
-                      <div className="sharing-terms-box">
-                        <p style={{ margin: '0 0 4px' }}>
-                          <strong>Home Review:</strong> {row.requesterReviewedBy ? `Reviewer #${row.requesterReviewedBy} (${row.requesterReviewRemarks || 'Approved'})` : 'Pending'}
-                        </p>
-                        <p style={{ margin: 0 }}>
-                          <strong>Partner Decision:</strong> {row.reviewedBy ? `Reviewer #${row.reviewedBy} (${row.reviewRemarks || 'Approved'})` : 'Awaiting Decision'}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="sharing-card-actions">
-                      {tab === 'mine' && ['PENDING', 'FORWARDED'].includes(row.status) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <StatusBadge status={reviewRequest.status} />
                         <button
                           type="button"
-                          className="button-secondary"
-                          onClick={() => withdraw(row.id)}
+                          className="sharing-review-close-btn"
+                          onClick={closeReviewDrawer}
+                          aria-label="Close review panel"
                         >
-                          Withdraw Request
+                          ✕
                         </button>
-                      )}
-
-                      {tab === 'outgoing' && (
-                        <>
-                          <button
-                            type="button"
-                            className="button-primary"
-                            onClick={() => action(row.id, 'FORWARD')}
-                          >
-                            Forward to Partner
-                          </button>
-                          <button
-                            type="button"
-                            className="button-secondary"
-                            onClick={() => action(row.id, 'REJECT')}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-
-                      {tab === 'incoming' && (
-                        <>
-                          <button
-                            type="button"
-                            className="button-primary"
-                            onClick={() => action(row.id, 'APPROVE')}
-                          >
-                            Approve & Create Agreement
-                          </button>
-                          <button
-                            type="button"
-                            className="button-secondary"
-                            onClick={() => action(row.id, 'REJECT')}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-
-                      {tab === 'access' && (
-                        <Link
-                          className="button-primary"
-                          to={`/bookings?equipmentId=${eq?.id}&agreementId=${row.id}`}
-                        >
-                          Create Booking
-                        </Link>
-                      )}
-
-                      {tab === 'agreements' && ownerManager && (
-                        <>
-                          <button
-                            type="button"
-                            className="button-secondary"
-                            onClick={() => revoke(`/api/sharing/agreements/${row.id}/revoke`)}
-                          >
-                            Revoke Agreement
-                          </button>
-                          {(value.grants || []).map((grant) => (
-                            <div key={grant.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                              <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                                Grant #{grant.id}: {grant.status}
-                              </span>
-                              {grant.status === 'ACTIVE' && (
-                                <button
-                                  type="button"
-                                  className="button-secondary"
-                                  style={{ padding: '3px 8px', fontSize: '11.5px' }}
-                                  onClick={() => revoke(`/api/sharing/grants/${grant.id}/revoke`)}
-                                >
-                                  Revoke Grant
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </>
-                      )}
+                      </div>
                     </div>
 
-                    {(tab === 'agreements' || tab === 'access') && <Fees agreementId={row.id} />}
-                  </article>
+                    <div className="sharing-review-body">
+                      {reviewError && (
+                        <div className="module-alert" role="alert" style={{ margin: 0 }}>
+                          {reviewError}
+                        </div>
+                      )}
+
+                      {/* REQUEST SUMMARY */}
+                      <section className="sharing-review-summary-card">
+                        <h3 className="sharing-review-summary-title">
+                          <span>Proposal Summary</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                            ID: #{reviewRequest.id}
+                          </span>
+                        </h3>
+                        <div className="sharing-review-detail-grid">
+                          <div className="sharing-review-detail-item">
+                            <span className="label">Equipment</span>
+                            <span className="value">{summary.equipmentName}</span>
+                          </div>
+                          <div className="sharing-review-detail-item">
+                            <span className="label">Asset Tag</span>
+                            <span className="value">{summary.assetTag}</span>
+                          </div>
+                          <div className="sharing-review-detail-item">
+                            <span className="label">Partner Institution</span>
+                            <span className="value">{partnerName}</span>
+                          </div>
+                          <div className="sharing-review-detail-item">
+                            <span className="label">Requester</span>
+                            <span className="value">{summary.recipient}</span>
+                          </div>
+                          <div className="sharing-review-detail-item" style={{ gridColumn: 'span 2' }}>
+                            <span className="label">Requested Access Period</span>
+                            <span className="value">
+                              {formatSharedTime(summary.startDate)} – {formatSharedTime(summary.endDate)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {reviewRequest.purpose && (
+                          <div style={{ marginTop: '4px' }}>
+                            <span className="label" style={{ display: 'block', marginBottom: '2px', fontSize: '11.5px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                              Research Purpose & Scope
+                            </span>
+                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)' }}>
+                              {reviewRequest.purpose}
+                            </p>
+                          </div>
+                        )}
+                      </section>
+
+                      {/* FIRST-STAGE REVIEW AUDIT BLOCK */}
+                      <section className="sharing-review-audit-block">
+                        <div className="sharing-review-audit-title">
+                          <span>✓ Stage 1: Home Institution Review</span>
+                        </div>
+                        <div className="sharing-review-audit-meta">
+                          Reviewed by: <strong>{summary.firstStageReviewer}</strong>
+                          {summary.firstStageReviewedAt && (
+                            <span> · {formatSharedTime(summary.firstStageReviewedAt)}</span>
+                          )}
+                        </div>
+                        <div className="sharing-review-audit-remarks">
+                          <strong>Home Remarks:</strong> {summary.firstStageRemarks}
+                        </div>
+                      </section>
+
+                      {/* MODE SWITCHER */}
+                      <div className="sharing-review-tabs" role="tablist" aria-label="Review decision mode">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={reviewMode === 'APPROVE'}
+                          className={`sharing-review-tab-btn ${reviewMode === 'APPROVE' ? 'active-approve' : ''}`}
+                          onClick={() => {
+                            setReviewMode('APPROVE')
+                            setReviewError('')
+                          }}
+                        >
+                          Approve & Create Agreement
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={reviewMode === 'REJECT'}
+                          className={`sharing-review-tab-btn ${reviewMode === 'REJECT' ? 'active-reject' : ''}`}
+                          onClick={() => {
+                            setReviewMode('REJECT')
+                            setReviewError('')
+                          }}
+                        >
+                          Reject Request
+                        </button>
+                      </div>
+
+                      {/* APPROVE VIEW */}
+                      {reviewMode === 'APPROVE' && (
+                        <form className="sharing-review-form" onSubmit={handleConfirmApprove}>
+                          <div className="sharing-review-agreement-preview">
+                            <h4>Resulting Sharing Agreement</h4>
+                            <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                              Approving creates an active bilateral agreement and grants access directly to the requester.
+                            </p>
+                            <div className="sharing-review-detail-grid" style={{ marginTop: '4px' }}>
+                              <div className="sharing-review-detail-item">
+                                <span className="label">Agreement Period</span>
+                                <span className="value">
+                                  {formatSharedTime(summary.startDate)} to {formatSharedTime(summary.endDate)}
+                                </span>
+                              </div>
+                              <div className="sharing-review-detail-item">
+                                <span className="label">Hourly Rate Snapshot</span>
+                                <span className="value">
+                                  <strong>{summary.feePerHour != null ? `${formatAmount(summary.feePerHour)}/hr` : '—'}</strong>
+                                </span>
+                              </div>
+                              <div className="sharing-review-detail-item" style={{ gridColumn: 'span 2' }}>
+                                <span className="label">Single Access Grant Recipient</span>
+                                <span className="value">{summary.recipient}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="sharing-review-field" style={{ marginTop: '12px' }}>
+                            <label>Optional Allowed Booking Hours</label>
+                            <p style={{ margin: '0 0 6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                              Restrict partner bookings to specific daily operating hours. Leave blank for 24/7 access.
+                            </p>
+                            <div className="sharing-review-hours-grid">
+                              <div>
+                                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>Start Time</span>
+                                <input
+                                  type="time"
+                                  value={allowedStartTime}
+                                  onChange={(e) => setAllowedStartTime(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>End Time</span>
+                                <input
+                                  type="time"
+                                  value={allowedEndTime}
+                                  onChange={(e) => setAllowedEndTime(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="sharing-review-field" style={{ marginTop: '12px' }}>
+                            <label htmlFor="approve-remarks">Approval Remarks / Usage Instructions (Optional)</label>
+                            <textarea
+                              id="approve-remarks"
+                              rows={3}
+                              maxLength={500}
+                              placeholder="Specify safety guidelines, operator assistance hours, or lab check-in directions…"
+                              value={approvalRemarks}
+                              onChange={(e) => setApprovalRemarks(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="sharing-review-footer">
+                            <button
+                              type="button"
+                              className="button-secondary"
+                              onClick={closeReviewDrawer}
+                              disabled={reviewSubmitting}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="button-primary"
+                              disabled={reviewSubmitting}
+                            >
+                              {reviewSubmitting ? 'Approving…' : 'Confirm Approval & Create Agreement'}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+
+                      {/* REJECT VIEW */}
+                      {reviewMode === 'REJECT' && (
+                        <form className="sharing-review-form" onSubmit={handleConfirmReject}>
+                          <div className="sharing-review-field">
+                            <label htmlFor="reject-remarks">
+                              Rejection Remarks <span style={{ color: 'var(--danger)' }}>*</span>
+                            </label>
+                            <p style={{ margin: '0 0 6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                              Provide a clear rationale for the partner institution and researcher explaining why this request cannot be approved.
+                            </p>
+                            <textarea
+                              id="reject-remarks"
+                              rows={4}
+                              required
+                              maxLength={500}
+                              placeholder="e.g. Scheduled internal maintenance during this window, or specialized operator unavailable…"
+                              value={rejectRemarks}
+                              onChange={(e) => {
+                                setRejectRemarks(e.target.value)
+                                if (reviewError) setReviewError('')
+                              }}
+                            />
+                            <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'right' }}>
+                              {rejectRemarks.length}/500 characters
+                            </span>
+                          </div>
+
+                          <div className="sharing-review-footer">
+                            <button
+                              type="button"
+                              className="button-secondary"
+                              onClick={closeReviewDrawer}
+                              disabled={reviewSubmitting}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="button-secondary"
+                              style={{
+                                background: '#dc2626',
+                                color: '#ffffff',
+                                borderColor: '#dc2626',
+                              }}
+                              disabled={reviewSubmitting || !rejectRemarks.trim()}
+                            >
+                              {reviewSubmitting ? 'Rejecting…' : 'Confirm Rejection'}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  </aside>
                 )
-              })}
+              })()}
             </div>
           )}
 

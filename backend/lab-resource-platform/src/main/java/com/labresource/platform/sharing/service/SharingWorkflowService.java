@@ -315,45 +315,91 @@ public class SharingWorkflowService {
         return requests.save(r);
     }
 
+    public void enrichRequests(List<SharingRequest> list) {
+        if (list == null || list.isEmpty()) return;
+        List<Long> eqIds = list.stream().map(SharingRequest::getEquipmentId).filter(Objects::nonNull).distinct().toList();
+        List<Long> instIds = list.stream().map(SharingRequest::getRequesterInstitutionId).filter(Objects::nonNull).distinct().toList();
+        List<Long> userIds = list.stream().map(SharingRequest::getRequesterId).filter(Objects::nonNull).distinct().toList();
+
+        Map<Long, Equipment> eqMap = new HashMap<>();
+        if (!eqIds.isEmpty()) {
+            equipment.findAllById(eqIds).forEach(e -> eqMap.put(e.getId(), e));
+        }
+
+        Map<Long, SharingListing> listMap = new HashMap<>();
+        if (!eqIds.isEmpty()) {
+            listings.findByEquipmentIdIn(eqIds).forEach(l -> listMap.put(l.getEquipmentId(), l));
+        }
+
+        Map<Long, String> instMap = new HashMap<>();
+        if (!instIds.isEmpty()) {
+            institutions.findAllById(instIds).forEach(i -> instMap.put(i.getId(), i.getName()));
+        }
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            users.findAllById(userIds).forEach(u -> userMap.put(u.getId(), u));
+        }
+
+        for (SharingRequest r : list) {
+            Equipment e = eqMap.get(r.getEquipmentId());
+            if (e != null) {
+                r.setEquipmentName(e.getName());
+                r.setAssetTag(e.getAssetTag());
+            }
+            SharingListing l = listMap.get(r.getEquipmentId());
+            if (l != null) {
+                r.setFeePerHour(l.getFeePerHour());
+            }
+            if (r.getRequesterInstitutionId() != null) {
+                r.setPartnerInstitution(instMap.get(r.getRequesterInstitutionId()));
+            }
+            User u = userMap.get(r.getRequesterId());
+            if (u != null) {
+                r.setRequesterName(u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getEmail());
+                r.setRequesterEmail(u.getEmail());
+            }
+        }
+    }
+
     public List<SharingRequest> requests(String view, String email) {
         User u = actor(email);
-        if ("mine".equals(view)) return requests.findByRequesterIdOrderByCreatedAtDesc(u.getId());
-        if (role(u, "DEPARTMENT_HEAD")) {
-            return requests.findByRequesterInstitutionIdAndStatusOrderByCreatedAtDesc(u.getInstitutionId(), "PENDING");
-        }
-        if (!sys(u) && !role(u, "INSTITUTION_ADMIN")) {
+        List<SharingRequest> res = List.of();
+        if ("mine".equals(view)) res = requests.findByRequesterIdOrderByCreatedAtDesc(u.getId());
+        else if (role(u, "DEPARTMENT_HEAD")) {
+            res = requests.findByRequesterInstitutionIdAndStatusOrderByCreatedAtDesc(u.getInstitutionId(), "PENDING");
+        } else if (!sys(u) && !role(u, "INSTITUTION_ADMIN")) {
             throw new SecurityException("Administrator role required");
-        }
-        if ("outgoing".equals(view)) {
-            return requests.findByRequesterInstitutionIdAndStatusOrderByCreatedAtDesc(u.getInstitutionId(), "PENDING");
-        }
-        if ("incoming".equals(view)) {
-            return sys(u)
+        } else if ("outgoing".equals(view)) {
+            res = requests.findByRequesterInstitutionIdAndStatusOrderByCreatedAtDesc(u.getInstitutionId(), "PENDING");
+        } else if ("incoming".equals(view)) {
+            res = sys(u)
                     ? requests.findByStatusOrderByCreatedAtDesc("FORWARDED", PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent()
                     : requests.ownerQueue(u.getInstitutionId(), PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
         }
-        return List.of();
+        enrichRequests(res);
+        return res;
     }
 
     public Page<SharingRequest> requestsPage(String view, String email, int page, int size) {
         User u = actor(email);
         PageRequest pageable = PageRequest.of(Math.max(0, page), Math.min(50, Math.max(1, size)), Sort.by(Sort.Direction.DESC, "createdAt"));
-        if ("mine".equals(view)) return requests.findByRequesterIdOrderByCreatedAtDesc(u.getId(), pageable);
-        if (role(u, "DEPARTMENT_HEAD")) {
-            return requests.findByRequesterInstitutionIdAndStatusOrderByCreatedAtDesc(u.getInstitutionId(), "PENDING", pageable);
-        }
-        if (!sys(u) && !role(u, "INSTITUTION_ADMIN")) {
+        Page<SharingRequest> result = Page.empty(pageable);
+        if ("mine".equals(view)) {
+            result = requests.findByRequesterIdOrderByCreatedAtDesc(u.getId(), pageable);
+        } else if (role(u, "DEPARTMENT_HEAD")) {
+            result = requests.findByRequesterInstitutionIdAndStatusOrderByCreatedAtDesc(u.getInstitutionId(), "PENDING", pageable);
+        } else if (!sys(u) && !role(u, "INSTITUTION_ADMIN")) {
             throw new SecurityException("Administrator role required");
-        }
-        if ("outgoing".equals(view)) {
-            return requests.findByRequesterInstitutionIdAndStatusOrderByCreatedAtDesc(u.getInstitutionId(), "PENDING", pageable);
-        }
-        if ("incoming".equals(view)) {
-            return sys(u)
+        } else if ("outgoing".equals(view)) {
+            result = requests.findByRequesterInstitutionIdAndStatusOrderByCreatedAtDesc(u.getInstitutionId(), "PENDING", pageable);
+        } else if ("incoming".equals(view)) {
+            result = sys(u)
                     ? requests.findByStatusOrderByCreatedAtDesc("FORWARDED", pageable)
                     : requests.ownerQueue(u.getInstitutionId(), pageable);
         }
-        return Page.empty(pageable);
+        enrichRequests(result.getContent());
+        return result;
     }
 
     public List<Map<String, Object>> agreements(String email) {
