@@ -57,6 +57,14 @@ export default function Maintenance() {
   const staffDateRange = Boolean(accessPlan.summaryUrl)
 
   const [activeTab, setActiveTab] = useState(isTechnician ? 'my-tasks' : 'work-orders')
+
+  useEffect(() => {
+    if (activeTab === 'my-tasks' && !isTechnician) {
+      setActiveTab('work-orders')
+    } else if (activeTab === 'calibration' && !isTechnician && !isManagerOrAdmin) {
+      setActiveTab('work-orders')
+    }
+  }, [activeTab, isTechnician, isManagerOrAdmin])
   const [records, setRecords] = useState([])
   const [equipment, setEquipment] = useState([])
   const [summary, setSummary] = useState(null)
@@ -140,14 +148,17 @@ export default function Maintenance() {
       requests.push(['records', recordRequest])
       requests.push(['equipment', api.get('/api/equipment')])
       if (accessPlan.summaryUrl) requests.push(['summary', api.get(accessPlan.summaryUrl)])
-      requests.push(['calibrations', api.get('/api/calibrations')])
-      requests.push(['calSummary', api.get('/api/calibrations/summary')])
+
+      if (isTechnician || isManagerOrAdmin) {
+        requests.push(['calibrations', api.get('/api/calibrations')])
+        requests.push(['calSummary', api.get('/api/calibrations/summary')])
+      }
 
       if (isManagerOrAdmin) {
         requests.push(['technicians', api.get('/api/users/technicians')])
       }
 
-      if (isTechnician || isManagerOrAdmin) {
+      if (isTechnician) {
         requests.push(['myMaintenance', api.get('/api/maintenance/my-tasks')])
         requests.push(['myCalibrations', api.get('/api/calibrations/my-tasks')])
       }
@@ -518,7 +529,7 @@ export default function Maintenance() {
         >
           🔧 Work Orders &amp; Schedules ({records.length})
         </button>
-        {(isTechnician || isManagerOrAdmin) && (
+        {isTechnician && (
           <button
             type="button"
             className={`sharing-tab-btn ${activeTab === 'my-tasks' ? 'button-primary' : 'button-secondary'}`}
@@ -527,13 +538,15 @@ export default function Maintenance() {
             📋 My Assigned Tasks ({myTasks.maintenance.length + myTasks.calibrations.length})
           </button>
         )}
-        <button
-          type="button"
-          className={`sharing-tab-btn ${activeTab === 'calibration' ? 'button-primary' : 'button-secondary'}`}
-          onClick={() => setActiveTab('calibration')}
-        >
-          ⚖️ Calibration &amp; Compliance ({calibrations.length})
-        </button>
+        {(isTechnician || isManagerOrAdmin) && (
+          <button
+            type="button"
+            className={`sharing-tab-btn ${activeTab === 'calibration' ? 'button-primary' : 'button-secondary'}`}
+            onClick={() => setActiveTab('calibration')}
+          >
+            ⚖️ Calibration &amp; Compliance ({calibrations.length})
+          </button>
+        )}
         <button
           type="button"
           className={`sharing-tab-btn ${activeTab === 'history' ? 'button-primary' : 'button-secondary'}`}

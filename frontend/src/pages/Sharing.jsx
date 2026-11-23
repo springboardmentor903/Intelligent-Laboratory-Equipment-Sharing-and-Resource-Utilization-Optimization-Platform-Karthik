@@ -252,6 +252,11 @@ export default function Sharing() {
     const timer = setTimeout(() => {
       setDebouncedKeyword(keyword)
       setParams((p) => {
+        const currentKeyword = p.get('keyword') || ''
+        const targetKeyword = keyword || ''
+        if (currentKeyword === targetKeyword) {
+          return p
+        }
         const next = new URLSearchParams(p)
         if (keyword) next.set('keyword', keyword)
         else next.delete('keyword')

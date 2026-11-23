@@ -29,7 +29,7 @@ public class CalibrationController {
     }
 
     @GetMapping
-    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<List<CalibrationRecord>> getAllCalibrations(
             @RequestParam(required = false) Long equipmentId,
             @RequestParam(required = false) String status,
@@ -54,7 +54,7 @@ public class CalibrationController {
     }
 
     @GetMapping("/due")
-    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<List<CalibrationRecord>> getDueCalibrations(
             @RequestParam(defaultValue = "30") int daysAhead,
             Authentication authentication) {
@@ -78,7 +78,7 @@ public class CalibrationController {
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<Map<String, Object>> getSummary(Authentication authentication) {
         Long institutionId = resourceAccess.scopedInstitutionId(null, authentication);
         return ResponseEntity.ok(calibrationRecordService.getSummary(institutionId));

@@ -4,8 +4,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -15,8 +18,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Small single-process limiter for the modular-monolith deployment.
- * Keys use the servlet peer address; forwarded headers are intentionally ignored.
+ * Single-process rate limiter for the modular monolith.
+ * Strict limits protect authentication endpoints (login, register, password reset).
+ * Authenticated API requests receive a high burst/per-minute allowance so normal SPA navigation
+ * across /sharing, /maintenance, and /analytics never triggers HTTP 429.
  */
 @Component
 public class ApiRateLimitFilter extends OncePerRequestFilter {
@@ -25,6 +30,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     private final AtomicLong requestCount = new AtomicLong();
     private final int apiLimit;
     private final Duration apiWindow;
+    private final int authenticatedLimit;
     private final int loginLimit;
     private final Duration loginWindow;
     private final int registrationLimit;
@@ -32,15 +38,17 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     private final int passwordResetLimit;
     private final Duration passwordResetWindow;
 
+    @Autowired
     public ApiRateLimitFilter(
-            @Value("${app.rate-limit.api.max-requests:300}") int apiLimit,
+            @Value("${app.rate-limit.api.max-requests:1000}") int apiLimit,
             @Value("${app.rate-limit.api.window-seconds:60}") long apiWindowSeconds,
             @Value("${app.rate-limit.login.max-requests:10}") int loginLimit,
             @Value("${app.rate-limit.login.window-seconds:60}") long loginWindowSeconds,
             @Value("${app.rate-limit.registration.max-requests:10}") int registrationLimit,
             @Value("${app.rate-limit.registration.window-seconds:60}") long registrationWindowSeconds,
             @Value("${app.rate-limit.password-reset.max-requests:5}") int passwordResetLimit,
-            @Value("${app.rate-limit.password-reset.window-seconds:300}") long passwordResetWindowSeconds) {
+            @Value("${app.rate-limit.password-reset.window-seconds:300}") long passwordResetWindowSeconds,
+            @Value("${app.rate-limit.authenticated.max-requests:3000}") int authenticatedLimit) {
         this.apiLimit = positive(apiLimit, "api max requests");
         this.apiWindow = seconds(apiWindowSeconds, "api window");
         this.loginLimit = positive(loginLimit, "login max requests");
@@ -49,6 +57,17 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         this.registrationWindow = seconds(registrationWindowSeconds, "registration window");
         this.passwordResetLimit = positive(passwordResetLimit, "password reset max requests");
         this.passwordResetWindow = seconds(passwordResetWindowSeconds, "password reset window");
+        this.authenticatedLimit = positive(authenticatedLimit, "authenticated max requests");
+    }
+
+    public ApiRateLimitFilter(
+            int apiLimit, long apiWindowSeconds,
+            int loginLimit, long loginWindowSeconds,
+            int registrationLimit, long registrationWindowSeconds,
+            int passwordResetLimit, long passwordResetWindowSeconds) {
+        this(apiLimit, apiWindowSeconds, loginLimit, loginWindowSeconds,
+             registrationLimit, registrationWindowSeconds,
+             passwordResetLimit, passwordResetWindowSeconds, 3000);
     }
 
     @Override
@@ -67,12 +86,31 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         }
 
         String address = request.getRemoteAddr() == null ? "unknown" : request.getRemoteAddr();
-        Limit limit = ruleFor(request.getRequestURI());
-        long retrySeconds = consume("api:" + address, apiLimit, apiWindow, now);
-        if (retrySeconds == 0 && limit != null) {
-            retrySeconds = consume(limit.key() + ":" + address,
-                    limit.maxRequests(), limit.window(), now);
+        String path = request.getRequestURI();
+        Limit sensitiveLimit = ruleFor(path);
+
+        // Strict limits for sensitive auth endpoints
+        long retrySeconds = 0;
+        if (sensitiveLimit != null) {
+            retrySeconds = consume(sensitiveLimit.key() + ":" + address,
+                    sensitiveLimit.maxRequests(), sensitiveLimit.window(), now);
         }
+
+        // General API rate limiting: distinguish authenticated vs unauthenticated
+        if (retrySeconds == 0) {
+            String authHeader = request.getHeader("Authorization");
+            boolean hasBearer = authHeader != null && authHeader.startsWith("Bearer ") && authHeader.length() > 20;
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean isAuthenticated = hasBearer || (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName()));
+
+            if (isAuthenticated) {
+                // Generous bucket for authenticated users (3000 requests / minute)
+                retrySeconds = consume("auth-api:" + address, authenticatedLimit, apiWindow, now);
+            } else {
+                retrySeconds = consume("api:" + address, apiLimit, apiWindow, now);
+            }
+        }
+
         if (retrySeconds > 0) {
             response.setStatus(429);
             response.setHeader("Retry-After", Long.toString(retrySeconds));

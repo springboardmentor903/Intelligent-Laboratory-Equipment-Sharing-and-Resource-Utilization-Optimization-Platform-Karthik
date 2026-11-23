@@ -1,4 +1,3 @@
-
 package com.labresource.platform.maintenance.controller;
 
 import com.labresource.platform.maintenance.entity.Maintenance;
@@ -28,12 +27,24 @@ public class MaintenanceController {
     }
 
     @GetMapping
-    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
-    public ResponseEntity<List<Maintenance>> getAllMaintenanceRecords() {
-        Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    public ResponseEntity<List<Maintenance>> getAllMaintenanceRecords(Authentication authentication) {
+        Authentication auth = authentication != null ? authentication :
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth != null && resourceAccess.hasAnyRole(auth, "RESEARCHER_STUDENT")) {
+            Long userId = resourceAccess.currentUserId(auth);
+            return scoped(maintenanceService.getByReporter(userId));
+        }
+
+        final Authentication currentAuth = auth;
         return ResponseEntity.ok(maintenanceService.getAllMaintenanceRecords().stream()
-                .filter(record -> resourceAccess.canAccessEquipment(record.getEquipmentId(), auth))
+                .filter(record -> resourceAccess.canAccessEquipment(record.getEquipmentId(), currentAuth))
                 .collect(Collectors.toList()));
+    }
+
+    public ResponseEntity<List<Maintenance>> getAllMaintenanceRecords() {
+        return getAllMaintenanceRecords(null);
     }
 
     @GetMapping("/{id}")
@@ -167,7 +178,6 @@ public class MaintenanceController {
         }
     }
 
-
     @PatchMapping("/{id}/assign")
     @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessMaintenance(#id, authentication) and @resourceAccess.canAccessUser(#request.technicianId, authentication) and @resourceAccess.isTechnician(#request.technicianId)")
     public ResponseEntity<?> assignTechnician(
@@ -185,11 +195,11 @@ public class MaintenanceController {
         }
     }
 
-
     @GetMapping("/summary")
-    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
-    public ResponseEntity<Map<String, Object>> getMaintenanceSummary() {
-        var all = getAllMaintenanceRecords().getBody();
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    public ResponseEntity<Map<String, Object>> getMaintenanceSummary(Authentication authentication) {
+        var all = getAllMaintenanceRecords(authentication).getBody();
+        if (all == null) all = List.of();
         Map<String, Object> summary = new java.util.HashMap<>();
 
         summary.put(
@@ -236,6 +246,9 @@ public class MaintenanceController {
         return ResponseEntity.ok(summary);
     }
 
+    public ResponseEntity<Map<String, Object>> getMaintenanceSummary() {
+        return getMaintenanceSummary(null);
+    }
 
     @PatchMapping("/{id}/resolution")
     @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN') and @resourceAccess.canAccessMaintenance(#id, authentication)")
@@ -254,7 +267,6 @@ public class MaintenanceController {
         }
     }
 
-
     @GetMapping("/equipment/{equipmentId}/history")
     @PreAuthorize("@resourceAccess.canAccessEquipment(#equipmentId, authentication)")
     public ResponseEntity<List<Maintenance>> getMaintenanceHistory(
@@ -262,7 +274,6 @@ public class MaintenanceController {
 
         return scoped(maintenanceService.getByEquipment(equipmentId));
     }
-
 
     @GetMapping("/date-range")
     @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
@@ -284,5 +295,4 @@ public class MaintenanceController {
                 .filter(record -> resourceAccess.canAccessMaintenance(record.getId(), auth))
                 .collect(Collectors.toList()));
     }
-
 }
