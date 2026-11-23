@@ -37,6 +37,7 @@ database/backups/
 *.bak
 *.sql
 !**/src/main/resources/db/migration/*.sql
+!**/src/main/resources/demo_seed.sql
 
 # Local archives and binary documents
 *.zip

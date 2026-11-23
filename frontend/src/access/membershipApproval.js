@@ -3,7 +3,7 @@ import { hasValidRoles } from './roleAccess.js'
 export const PENDING_MEMBERSHIPS_URL = '/api/users/pending-membership'
 
 export function canManageMemberships(roles) {
-  return hasValidRoles(roles) && roles.includes('INSTITUTION_ADMIN')
+  return hasValidRoles(roles) && (roles.includes('INSTITUTION_ADMIN') || roles.includes('SYSTEM_ADMIN'))
 }
 
 export function membershipApprovalError(error) {
@@ -11,7 +11,7 @@ export function membershipApprovalError(error) {
     return 'Your session has expired. Sign in again to continue.'
   }
   if (error?.response?.status === 403) {
-    return 'Access denied. Only an approved institution administrator can manage membership requests.'
+    return 'Access denied. Only an approved institution administrator or system administrator can manage membership requests.'
   }
   return error?.response?.data?.message
     || error?.response?.data?.error

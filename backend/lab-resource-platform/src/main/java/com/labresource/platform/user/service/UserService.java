@@ -403,6 +403,10 @@ public class UserService {
         }
 
         roleRepository.findByName(roleToAssign).ifPresent(targetRole -> {
+            userRoleRepository.findByUserId(savedUser.getId()).stream()
+                    .filter(ur -> !ur.getRoleId().equals(targetRole.getId()))
+                    .forEach(userRoleRepository::delete);
+
             if (!userRoleRepository.existsByUserIdAndRoleId(savedUser.getId(), targetRole.getId())) {
                 userRoleRepository.save(new UserRole(savedUser.getId(), targetRole.getId()));
             }

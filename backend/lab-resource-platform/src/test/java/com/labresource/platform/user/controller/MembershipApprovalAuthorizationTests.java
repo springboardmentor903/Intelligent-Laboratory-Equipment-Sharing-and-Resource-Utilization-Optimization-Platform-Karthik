@@ -98,6 +98,32 @@ class MembershipApprovalAuthorizationTests {
         verify(service).getPendingMemberships("admin@example.test");
     }
 
+    @Test
+    @WithMockUser(username = "sysadmin@platform.test", roles = "SYSTEM_ADMIN")
+    void systemAdminCanReadPendingMembershipsAndApproveInstitutionAdmin() {
+        when(resourceAccess.canManageMemberships(any())).thenReturn(true);
+        when(resourceAccess.canApproveMembership(eq(25L), any())).thenReturn(true);
+
+        when(service.getPendingMemberships("sysadmin@platform.test")).thenReturn(java.util.List.of());
+
+        assertEquals(HttpStatus.OK, controller.getPendingMemberships(
+                SecurityContextHolder.getContext().getAuthentication()).getStatusCode());
+        verify(service).getPendingMemberships("sysadmin@platform.test");
+
+        User approved = new User();
+        approved.setId(25L);
+        approved.setEmail("instadmin@mrec.test");
+        approved.setInstitutionId(1L);
+        approved.setRequestedRole("INSTITUTION_ADMIN");
+        approved.setMembershipApproved(true);
+        when(service.approveMembership(25L, "sysadmin@platform.test")).thenReturn(approved);
+
+        var response = controller.approveMembership(25L,
+                SecurityContextHolder.getContext().getAuthentication());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(service).approveMembership(25L, "sysadmin@platform.test");
+    }
+
     @Configuration
     @EnableMethodSecurity
     static class TestConfig {
