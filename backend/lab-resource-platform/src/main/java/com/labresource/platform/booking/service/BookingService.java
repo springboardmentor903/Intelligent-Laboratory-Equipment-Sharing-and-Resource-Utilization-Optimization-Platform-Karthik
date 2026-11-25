@@ -83,6 +83,13 @@ public class BookingService {
         this.usageChargeService = usageChargeService;
     }
 
+    @Autowired(required = false)
+    private com.labresource.platform.notification.service.NotificationService notificationService;
+
+    public void setNotificationService(com.labresource.platform.notification.service.NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
+
     public void populateFeeDetails(Booking booking) {
         if (booking == null || booking.getSharingAgreementId() == null || sharingAgreementRepository == null) {
             return;
@@ -490,6 +497,42 @@ public class BookingService {
             publishBookingReleased(saved.getEquipmentId(), saved.getStartTime(), saved.getEndTime());
         }
         publishEquipmentChange(saved.getEquipmentId());
+
+        if (notificationService != null && saved.getUserId() != null) {
+            try {
+                Equipment eq = equipmentRepository.findById(saved.getEquipmentId()).orElse(null);
+                String eqName = eq != null ? eq.getName() : "Equipment #" + saved.getEquipmentId();
+                if (List.of("APPROVED", "CONFIRMED").contains(normalizedStatus)) {
+                    notificationService.createNotification(
+                            saved.getUserId(),
+                            com.labresource.platform.notification.model.NotificationType.BOOKING_CONFIRMED,
+                            "Booking Confirmed",
+                            "Your booking #" + saved.getId() + " for " + eqName + " has been confirmed.",
+                            com.labresource.platform.notification.model.ReferenceType.BOOKING,
+                            saved.getId()
+                    );
+                } else if ("REJECTED".equals(normalizedStatus)) {
+                    notificationService.createNotification(
+                            saved.getUserId(),
+                            com.labresource.platform.notification.model.NotificationType.BOOKING_REJECTED,
+                            "Booking Rejected",
+                            "Your booking #" + saved.getId() + " for " + eqName + " was rejected." + (reason != null ? " Reason: " + reason.trim() : ""),
+                            com.labresource.platform.notification.model.ReferenceType.BOOKING,
+                            saved.getId()
+                    );
+                } else if ("CANCELLED".equals(normalizedStatus)) {
+                    notificationService.createNotification(
+                            saved.getUserId(),
+                            com.labresource.platform.notification.model.NotificationType.BOOKING_CANCELLED,
+                            "Booking Cancelled",
+                            "Your booking #" + saved.getId() + " for " + eqName + " has been cancelled." + (reason != null ? " Reason: " + reason.trim() : ""),
+                            com.labresource.platform.notification.model.ReferenceType.BOOKING,
+                            saved.getId()
+                    );
+                }
+            } catch (Exception ignored) {
+            }
+        }
 
         return saved;
     }

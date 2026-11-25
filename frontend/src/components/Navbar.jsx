@@ -1,8 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { getNavigationItems } from '../access/roleAccess.js'
+import api, { WEBSOCKET_URL } from '../api/axiosInstance'
+import { connectEquipmentSocket } from '../access/equipmentSocket.js'
+import {
+  formatUnreadCount,
+  getNotificationRoute,
+} from '../access/notificationWorkflow.js'
+import NotificationBellDropdown from './NotificationBellDropdown'
 import {
   canViewCostOverview,
   canViewCharges,
@@ -73,6 +80,8 @@ const ROUTE_ICONS = {
   '/login': '🔑',
   '/register': '📝',
   '/register-institution': '🏛️',
+  '/notifications': '🔔',
+  '/notifications/preferences': '⚙️',
 }
 
 export default function Navbar() {
@@ -83,6 +92,109 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const isDark = theme === 'dark'
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [recentNotifications, setRecentNotifications] = useState([])
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [loadingDropdown, setLoadingDropdown] = useState(false)
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!isAuthenticated) return
+    try {
+      const res = await api.get('/api/notifications/unread-count')
+      setUnreadCount(Number(res.data?.unreadCount || 0))
+    } catch {
+      // Ignore background unread count fetch errors
+    }
+  }, [isAuthenticated])
+
+  const fetchRecentNotifications = useCallback(async () => {
+    if (!isAuthenticated) return
+    setLoadingDropdown(true)
+    try {
+      const res = await api.get('/api/notifications', {
+        params: { page: 0, size: 5 },
+      })
+      setRecentNotifications(Array.isArray(res.data?.content) ? res.data.content : [])
+    } catch {
+      // Ignore background notification fetch errors
+    } finally {
+      setLoadingDropdown(false)
+    }
+  }, [isAuthenticated])
+
+  const handleToggleDropdown = () => {
+    if (!dropdownOpen) {
+      fetchRecentNotifications()
+      setDropdownOpen(true)
+    } else {
+      setDropdownOpen(false)
+    }
+  }
+
+  const handleCloseDropdown = () => {
+    setDropdownOpen(false)
+  }
+
+  const handleNotificationClick = async (item) => {
+    const isUnread = !(item.isRead ?? item.read)
+    if (isUnread) {
+      try {
+        await api.patch(`/api/notifications/${item.id}/read`)
+        setUnreadCount((c) => Math.max(0, c - 1))
+        setRecentNotifications((prev) =>
+          prev.map((n) => (n.id === item.id ? { ...n, isRead: true, read: true } : n))
+        )
+      } catch {
+        // Ignore patch failure
+      }
+    }
+    setDropdownOpen(false)
+    closeDrawer()
+    navigate(getNotificationRoute(item))
+  }
+
+  // Real-time unread count via WebSocket and polling fallback
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadCount(0)
+      setRecentNotifications([])
+      setDropdownOpen(false)
+      return
+    }
+
+    fetchUnreadCount()
+
+    const socket = connectEquipmentSocket({
+      url: WEBSOCKET_URL,
+      token: localStorage.getItem('token'),
+      onNotificationUpdate: (msg) => {
+        if (msg.unreadCount != null) {
+          setUnreadCount(Number(msg.unreadCount))
+        }
+      },
+      onReconnect: () => {
+        fetchUnreadCount()
+      },
+    })
+
+    const pollTimer = window.setInterval(() => {
+      fetchUnreadCount()
+    }, 60000)
+
+    const handleNotificationsUpdated = () => {
+      fetchUnreadCount()
+      if (dropdownOpen) {
+        fetchRecentNotifications()
+      }
+    }
+    window.addEventListener('lab-notifications-updated', handleNotificationsUpdated)
+
+    return () => {
+      socket.close()
+      window.clearInterval(pollTimer)
+      window.removeEventListener('lab-notifications-updated', handleNotificationsUpdated)
+    }
+  }, [isAuthenticated, user?.id, fetchUnreadCount, dropdownOpen, fetchRecentNotifications])
 
   const navLinkClass = ({ isActive }) =>
     `navbar-link${isActive ? ' navbar-link-active' : ''}`
@@ -96,6 +208,9 @@ export default function Navbar() {
 
   function handleLogout() {
     logout()
+    setUnreadCount(0)
+    setRecentNotifications([])
+    setDropdownOpen(false)
     navigate('/', { replace: true })
   }
 
@@ -126,17 +241,31 @@ export default function Navbar() {
           </span>
         </Link>
 
-        <button
-          type="button"
-          className="theme-toggle mobile-quick-toggle"
-          onClick={toggleTheme}
-          aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-          title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-        >
-          <span className="theme-toggle-icon" aria-hidden="true">
-            {isDark ? <SunIcon /> : <MoonIcon />}
-          </span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isAuthenticated && (
+            <NotificationBellDropdown
+              unreadCount={unreadCount}
+              isOpen={dropdownOpen}
+              onToggle={handleToggleDropdown}
+              onClose={handleCloseDropdown}
+              notifications={recentNotifications}
+              loading={loadingDropdown}
+              onNotificationClick={handleNotificationClick}
+            />
+          )}
+
+          <button
+            type="button"
+            className="theme-toggle mobile-quick-toggle"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+            title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+          >
+            <span className="theme-toggle-icon" aria-hidden="true">
+              {isDark ? <SunIcon /> : <MoonIcon />}
+            </span>
+          </button>
+        </div>
       </header>
 
       {/* Backdrop overlay for mobile drawer */}
@@ -161,14 +290,28 @@ export default function Navbar() {
             </span>
           </Link>
 
-          <button
-            type="button"
-            className="sidebar-close-btn"
-            onClick={closeDrawer}
-            aria-label="Close navigation sidebar"
-          >
-            ✕
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isAuthenticated && (
+              <NotificationBellDropdown
+                unreadCount={unreadCount}
+                isOpen={dropdownOpen}
+                onToggle={handleToggleDropdown}
+                onClose={handleCloseDropdown}
+                notifications={recentNotifications}
+                loading={loadingDropdown}
+                onNotificationClick={handleNotificationClick}
+              />
+            )}
+
+            <button
+              type="button"
+              className="sidebar-close-btn"
+              onClick={closeDrawer}
+              aria-label="Close navigation sidebar"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
@@ -217,6 +360,30 @@ export default function Navbar() {
                     <span className="sidebar-link-text">{item.label}</span>
                   </NavLink>
                 ))}
+
+                <NavLink to="/notifications" className={navLinkClass} onClick={closeDrawer}>
+                  <span className="sidebar-link-icon" aria-hidden="true">
+                    {ROUTE_ICONS['/notifications']}
+                  </span>
+                  <span className="sidebar-link-text" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span>Notifications</span>
+                    {formatUnreadCount(unreadCount) && (
+                      <span
+                        style={{
+                          background: '#ef4444',
+                          color: '#ffffff',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          borderRadius: 10,
+                          padding: '1px 6px',
+                          marginLeft: 8,
+                        }}
+                      >
+                        {formatUnreadCount(unreadCount)}
+                      </span>
+                    )}
+                  </span>
+                </NavLink>
 
                 <div className="sidebar-nav-section-title" style={{ marginTop: 14 }}>
                   Billing & Costs

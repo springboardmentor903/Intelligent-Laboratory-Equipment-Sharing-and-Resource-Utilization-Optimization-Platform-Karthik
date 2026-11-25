@@ -49,6 +49,13 @@ public class SharingWorkflowService {
     private final ApplicationEventPublisher events;
     private final BookingAuditLogRepository auditLogs;
 
+    @Autowired(required = false)
+    private com.labresource.platform.notification.service.NotificationService notificationService;
+
+    public void setNotificationService(com.labresource.platform.notification.service.NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
+
     @Autowired
     public SharingWorkflowService(
             SharingListingRepository listings,
@@ -225,7 +232,27 @@ public class SharingWorkflowService {
         r.setPurpose(in.purpose().trim());
         r.setStartDate(in.startDate());
         r.setEndDate(in.endDate());
-        return requests.save(r);
+        SharingRequest saved = requests.save(r);
+
+        if (notificationService != null) {
+            try {
+                List<User> admins = users.findByInstitutionIdAndRequestedRoleAndMembershipStatus(
+                        u.getInstitutionId(), "INSTITUTION_ADMIN", "APPROVED");
+                for (User admin : admins) {
+                    notificationService.createNotification(
+                            admin.getId(),
+                            com.labresource.platform.notification.model.NotificationType.SHARING_REQUEST_SUBMITTED,
+                            "External Sharing Request Submitted",
+                            "A new equipment sharing request #" + saved.getId() + " for " + e.getName() + " was submitted by " + (u.getFullName() != null ? u.getFullName() : u.getEmail()) + ".",
+                            com.labresource.platform.notification.model.ReferenceType.SHARING_REQUEST,
+                            saved.getId()
+                    );
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        return saved;
     }
 
     @Transactional
@@ -258,7 +285,36 @@ public class SharingWorkflowService {
                 r.setReviewedAt(LocalDateTime.now());
                 r.setReviewRemarks(remarks);
             }
-            return requests.save(r);
+            SharingRequest saved = requests.save(r);
+            if (notificationService != null) {
+                try {
+                    if ("FORWARDED".equals(saved.getStatus())) {
+                        List<User> ownerAdmins = users.findByInstitutionIdAndRequestedRoleAndMembershipStatus(
+                                e.getInstitutionId(), "INSTITUTION_ADMIN", "APPROVED");
+                        for (User admin : ownerAdmins) {
+                            notificationService.createNotification(
+                                    admin.getId(),
+                                    com.labresource.platform.notification.model.NotificationType.SHARING_REQUEST_FORWARDED,
+                                    "Incoming Sharing Request Forwarded",
+                                    "Sharing request #" + saved.getId() + " for equipment " + e.getName() + " has been forwarded for your review.",
+                                    com.labresource.platform.notification.model.ReferenceType.SHARING_REQUEST,
+                                    saved.getId()
+                            );
+                        }
+                    } else if ("REJECTED".equals(saved.getStatus())) {
+                        notificationService.createNotification(
+                                saved.getRequesterId(),
+                                com.labresource.platform.notification.model.NotificationType.SHARING_REQUEST_REJECTED,
+                                "Sharing Request Rejected",
+                                "Your sharing request #" + saved.getId() + " for " + e.getName() + " was rejected by your institution admin.",
+                                com.labresource.platform.notification.model.ReferenceType.SHARING_REQUEST,
+                                saved.getId()
+                        );
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            return saved;
         }
 
         if (!"FORWARDED".equals(r.getStatus()) || (!sys(u) && (!role(u, "INSTITUTION_ADMIN") || !Objects.equals(u.getInstitutionId(), e.getInstitutionId())))) {
@@ -272,7 +328,21 @@ public class SharingWorkflowService {
         if ("REJECT".equals(act)) {
             requireReason(remarks);
             r.setStatus("REJECTED");
-            return requests.save(r);
+            SharingRequest saved = requests.save(r);
+            if (notificationService != null) {
+                try {
+                    notificationService.createNotification(
+                            saved.getRequesterId(),
+                            com.labresource.platform.notification.model.NotificationType.SHARING_REQUEST_REJECTED,
+                            "Sharing Request Rejected",
+                            "Your sharing request #" + saved.getId() + " for " + e.getName() + " was rejected by the owner institution.",
+                            com.labresource.platform.notification.model.ReferenceType.SHARING_REQUEST,
+                            saved.getId()
+                    );
+                } catch (Exception ignored) {
+                }
+            }
+            return saved;
         }
         if (!"APPROVE".equals(act)) {
             throw new IllegalArgumentException("Invalid action");
@@ -300,7 +370,21 @@ public class SharingWorkflowService {
         grants.save(g);
 
         r.setStatus("APPROVED");
-        return requests.save(r);
+        SharingRequest saved = requests.save(r);
+        if (notificationService != null) {
+            try {
+                notificationService.createNotification(
+                        saved.getRequesterId(),
+                        com.labresource.platform.notification.model.NotificationType.SHARING_REQUEST_APPROVED,
+                        "Sharing Request Approved",
+                        "Your sharing request #" + saved.getId() + " for " + e.getName() + " has been approved! Agreement #" + a.getId() + " is now active.",
+                        com.labresource.platform.notification.model.ReferenceType.SHARING_AGREEMENT,
+                        a.getId()
+                );
+            } catch (Exception ignored) {
+            }
+        }
+        return saved;
     }
 
     @Transactional
@@ -496,7 +580,25 @@ public class SharingWorkflowService {
             grants.save(g);
         }
         cancelBookingsForRevocation(a.getId(), null, reason, u.getEmail());
-        return agreements.save(a);
+        SharingAgreement saved = agreements.save(a);
+        if (notificationService != null) {
+            try {
+                List<User> partnerAdmins = users.findByInstitutionIdAndRequestedRoleAndMembershipStatus(
+                        saved.getPartnerInstitutionId(), "INSTITUTION_ADMIN", "APPROVED");
+                for (User admin : partnerAdmins) {
+                    notificationService.createNotification(
+                            admin.getId(),
+                            com.labresource.platform.notification.model.NotificationType.SHARING_AGREEMENT_REVOKED,
+                            "Sharing Agreement Revoked",
+                            "Sharing Agreement #" + saved.getId() + " has been revoked. Reason: " + reason.trim(),
+                            com.labresource.platform.notification.model.ReferenceType.SHARING_AGREEMENT,
+                            saved.getId()
+                    );
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return saved;
     }
 
     @Transactional

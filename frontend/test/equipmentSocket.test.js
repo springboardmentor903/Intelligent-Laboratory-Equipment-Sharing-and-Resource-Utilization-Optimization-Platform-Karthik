@@ -69,6 +69,26 @@ test('opens one authenticated socket using the backend subprotocol contract', ()
   assert.equal(socket.onmessage, null)
 })
 
+test('dispatches NOTIFICATION_UNREAD_COUNT_UPDATED message to onNotificationUpdate callback', () => {
+  MockWebSocket.instances = []
+  const notifUpdates = []
+  const client = connectEquipmentSocket({
+    url: 'ws://localhost:8080/ws/equipment',
+    token: 'test-token',
+    WebSocketImpl: MockWebSocket,
+    onNotificationUpdate: (msg) => notifUpdates.push(msg),
+  })
+
+  const socket = MockWebSocket.instances[0]
+  socket.open()
+
+  const event = { type: 'NOTIFICATION_UNREAD_COUNT_UPDATED', userId: 1, unreadCount: 5 }
+  socket.message(JSON.stringify(event))
+  assert.deepEqual(notifUpdates, [event])
+
+  client.close()
+})
+
 test('connection loss reconnects once and refreshes the complete snapshot after reconnect', () => {
   MockWebSocket.instances = []
   const timers = fakeTimers()

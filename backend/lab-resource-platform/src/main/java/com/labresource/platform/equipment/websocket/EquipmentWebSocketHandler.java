@@ -16,6 +16,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import java.io.IOException;
 import java.security.Principal;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -94,5 +95,34 @@ public class EquipmentWebSocketHandler extends TextWebSocketHandler {
         if (user.isSystemAdmin()) return true;
         if (user.canViewManagerUsageDetails() && user.institutionId() == null) return false;
         return user.institutionId() == null || user.institutionId().equals(institutionId);
+    }
+
+    public void sendUnreadCountUpdate(Long userId, long unreadCount) {
+        if (userId == null) return;
+        var message = Map.of(
+                "type", "NOTIFICATION_UNREAD_COUNT_UPDATED",
+                "userId", userId,
+                "unreadCount", unreadCount
+        );
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(message);
+        } catch (Exception e) {
+            return;
+        }
+
+        for (WebSocketSession session : sessions.values()) {
+            Principal principal = session.getPrincipal();
+            if (principal instanceof EquipmentWebSocketPrincipal user && Objects.equals(user.userId(), userId)) {
+                try {
+                    synchronized (session) {
+                        if (session.isOpen()) {
+                            session.sendMessage(new TextMessage(payload));
+                        }
+                    }
+                } catch (IOException ignored) {
+                }
+            }
+        }
     }
 }

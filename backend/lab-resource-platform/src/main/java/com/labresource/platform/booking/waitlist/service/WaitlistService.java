@@ -38,6 +38,13 @@ public class WaitlistService {
     private final UserRepository userRepository;
     private final int holdWindowMinutes;
 
+    @Autowired(required = false)
+    private com.labresource.platform.notification.service.NotificationService notificationService;
+
+    public void setNotificationService(com.labresource.platform.notification.service.NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
+
     @Autowired
     public WaitlistService(
             WaitlistRepository waitlistRepository,
@@ -133,7 +140,25 @@ public class WaitlistService {
         top.setExpiresAt(now.plusMinutes(holdWindowMinutes));
         log.info("Promoting waitlist entry {} for equipment {} (held until {})",
                 top.getId(), equipmentId, top.getExpiresAt());
-        return Optional.ofNullable(waitlistRepository.save(top));
+        WaitlistEntry saved = waitlistRepository.save(top);
+
+        if (notificationService != null && saved.getUserId() != null) {
+            try {
+                Equipment eq = equipmentRepository.findById(equipmentId).orElse(null);
+                String eqName = eq != null ? eq.getName() : "Equipment #" + equipmentId;
+                notificationService.createNotification(
+                        saved.getUserId(),
+                        com.labresource.platform.notification.model.NotificationType.WAITLIST_OFFER,
+                        "Waitlist Slot Offered",
+                        "A slot has become available for " + eqName + "! Your waitlist offer is reserved until " + saved.getExpiresAt() + ". Please claim it promptly.",
+                        com.labresource.platform.notification.model.ReferenceType.WAITLIST,
+                        saved.getId()
+                );
+            } catch (Exception ignored) {
+            }
+        }
+
+        return Optional.ofNullable(saved);
     }
 
     /**

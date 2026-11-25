@@ -6,6 +6,7 @@ export function connectEquipmentSocket({
   clearTimer = globalThis.clearTimeout,
   onStateChange = () => {},
   onEquipmentUpdate = () => {},
+  onNotificationUpdate = () => {},
   onReconnect = () => {},
 }) {
   let socket = null
@@ -55,6 +56,8 @@ export function connectEquipmentSocket({
             && message.equipmentId != null
             && message.equipment) {
           onEquipmentUpdate(message)
+        } else if (message?.type === 'NOTIFICATION_UNREAD_COUNT_UPDATED') {
+          onNotificationUpdate(message)
         }
       } catch {
         // Ignore malformed frames; the API snapshot remains authoritative.

@@ -62,6 +62,13 @@ public class WorkOrderService {
     private final CalibrationRecordRepository calibrationRecordRepository;
     private final StoredDocumentRepository storedDocumentRepository;
 
+    @Autowired(required = false)
+    private com.labresource.platform.notification.service.NotificationService notificationService;
+
+    public void setNotificationService(com.labresource.platform.notification.service.NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
+
     public WorkOrderService(
             WorkOrderRepository workOrderRepository,
             WorkOrderServiceLogRepository serviceLogRepository,
@@ -257,6 +264,26 @@ public class WorkOrderService {
         recordServiceLog(saved.getId(), user.getId(), "STATUS_CHANGE", null, saved.getStatus(),
                 "Work order created. Status: " + saved.getStatus());
 
+        if (notificationService != null && saved.getAssignedTo() != null) {
+            try {
+                com.labresource.platform.notification.model.NotificationType nType = "CALIBRATION".equalsIgnoreCase(saved.getWorkOrderType())
+                        ? com.labresource.platform.notification.model.NotificationType.CALIBRATION_WORK_ORDER_CREATED
+                        : com.labresource.platform.notification.model.NotificationType.PREVENTIVE_MAINTENANCE_CREATED;
+                String nTitle = "CALIBRATION".equalsIgnoreCase(saved.getWorkOrderType())
+                        ? "Calibration Work Order Assigned"
+                        : "Preventive Maintenance Work Order Assigned";
+                notificationService.createNotification(
+                        saved.getAssignedTo(),
+                        nType,
+                        nTitle,
+                        "Work order " + saved.getWorkOrderNumber() + " for " + eq.getName() + " has been assigned to you.",
+                        com.labresource.platform.notification.model.ReferenceType.WORK_ORDER,
+                        saved.getId()
+                );
+            } catch (Exception ignored) {
+            }
+        }
+
         enrichWorkOrder(saved);
         return saved;
     }
@@ -408,6 +435,26 @@ public class WorkOrderService {
 
         recordServiceLog(saved.getId(), user.getId(), "ASSIGNMENT", prevStatus, saved.getStatus(),
                 "Assigned to technician: " + (tech.getFullName() != null ? tech.getFullName() : tech.getEmail()));
+
+        if (notificationService != null && saved.getAssignedTo() != null) {
+            try {
+                com.labresource.platform.notification.model.NotificationType nType = "CALIBRATION".equalsIgnoreCase(saved.getWorkOrderType())
+                        ? com.labresource.platform.notification.model.NotificationType.CALIBRATION_WORK_ORDER_CREATED
+                        : com.labresource.platform.notification.model.NotificationType.PREVENTIVE_MAINTENANCE_CREATED;
+                String nTitle = "CALIBRATION".equalsIgnoreCase(saved.getWorkOrderType())
+                        ? "Calibration Work Order Assigned"
+                        : "Maintenance Work Order Assigned";
+                notificationService.createNotification(
+                        saved.getAssignedTo(),
+                        nType,
+                        nTitle,
+                        "Work order " + saved.getWorkOrderNumber() + " for " + eq.getName() + " has been assigned to you.",
+                        com.labresource.platform.notification.model.ReferenceType.WORK_ORDER,
+                        saved.getId()
+                );
+            } catch (Exception ignored) {
+            }
+        }
 
         enrichWorkOrder(saved);
         return saved;

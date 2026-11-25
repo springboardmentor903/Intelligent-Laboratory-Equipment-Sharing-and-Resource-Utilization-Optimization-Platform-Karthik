@@ -25,6 +25,8 @@ import Invoices from './pages/Invoices'
 import NotFound from './pages/NotFound'
 import PasswordReset from './pages/PasswordReset'
 import Profile from './pages/Profile'
+import Notifications from './pages/Notifications'
+import NotificationPreferences from './pages/NotificationPreferences'
 import OAuthCallback from './pages/OAuthCallback'
 import Sharing from './pages/Sharing'
 const SharingAnalytics = lazy(() => import('./pages/SharingAnalytics'))
@@ -60,6 +62,8 @@ export default function App() {
           <Route path="/technicians" element={<Technicians />} />
           <Route path="/my-usage-cost" element={<MyUsageCost />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/notifications/preferences" element={<NotificationPreferences />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN', 'DEPARTMENT_HEAD']} />}>
           <Route path="/cost-overview" element={<CostOverview />} />
