@@ -76,6 +76,7 @@ export default function Navbar() {
   const navLinkClass = ({ isActive }) =>
     `navbar-link${isActive ? ' navbar-link-active' : ''}`
   const roleNavigation = getNavigationItems(user?.roles)
+    .filter((item) => !(Array.isArray(user?.roles) && user.roles.includes('SYSTEM_ADMIN') && item.to === '/maintenance'))
 
   // Automatically close mobile sidebar on location/route change
   useEffect(() => {

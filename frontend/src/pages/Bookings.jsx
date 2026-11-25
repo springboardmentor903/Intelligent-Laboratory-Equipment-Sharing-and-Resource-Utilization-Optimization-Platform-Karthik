@@ -965,6 +965,29 @@ export default function Bookings() {
                         <span className={getStatusClass(booking.status)}>
                           {formatBookingStatus(booking.status)}
                         </span>
+                        {String(booking.status).toUpperCase() === 'CANCELLED' &&
+                          (String(booking.cancellationReason || '').toLowerCase().includes('maintenance') ||
+                           String(booking.notes || '').toLowerCase().includes('maintenance') ||
+                           String(booking.reason || '').toLowerCase().includes('maintenance') ||
+                           String(booking.purpose || '').toLowerCase().includes('maintenance')) && (
+                            <span
+                              className="badge-maintenance-cancelled"
+                              style={{
+                                display: 'inline-block',
+                                marginLeft: '6px',
+                                fontSize: '11px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 600,
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: 'var(--color-danger, #ef4444)',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                verticalAlign: 'middle',
+                              }}
+                            >
+                              Equipment under maintenance
+                            </span>
+                        )}
                       </td>
                       <td>
                         {actions.includes('cancel') && (

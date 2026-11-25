@@ -11,6 +11,10 @@ import {
   validateCertificationForm,
   validateEquipmentForm,
 } from '../access/equipmentWorkflow.js'
+import {
+  validateMaintenanceRequest,
+  buildMaintenanceRequestPayload,
+} from '../access/maintenanceWorkflow.js'
 
 const blankEquipment = (institutionId = '') => ({
   name: '', assetTag: '', category: '', description: '', institutionId: institutionId ?? '',
@@ -74,6 +78,19 @@ export default function Equipment() {
   const [recordSubmitting, setRecordSubmitting] = useState(false)
   const [showCalibrationForm, setShowCalibrationForm] = useState(false)
   const [showCertificationForm, setShowCertificationForm] = useState(false)
+
+  const [problemModalOpen, setProblemModalOpen] = useState(false)
+  const [problemEquipment, setProblemEquipment] = useState(null)
+  const [problemForm, setProblemForm] = useState({ title: '', description: '', priority: 'MEDIUM' })
+  const [problemSubmitting, setProblemSubmitting] = useState(false)
+  const [problemError, setProblemError] = useState('')
+  const [problemSuccess, setProblemSuccess] = useState('')
+
+  const [recordsTab, setRecordsTab] = useState('calibrations')
+  const [serviceHistory, setServiceHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [downtimeSummary, setDowntimeSummary] = useState(null)
+  const [downtimeLoading, setDowntimeLoading] = useState(false)
   const equipmentMutationLock = useRef(false)
   const recordMutationLock = useRef(false)
   const deleteLock = useRef(false)
@@ -189,11 +206,24 @@ export default function Equipment() {
     const requestId = ++recordsRequestId.current
     setRecordsLoading(true)
     setRecordsError('')
-    const [calibrationResult, certificationResult] = await Promise.allSettled([
+    const isSysAdmin = Array.isArray(user?.roles) && user.roles.includes('SYSTEM_ADMIN')
+
+    const requests = [
       api.get(`/api/equipment/${equipmentId}/calibrations`),
       api.get(`/api/equipment/${equipmentId}/certifications`),
-    ])
+    ]
+    if (!isSysAdmin) {
+      requests.push(api.get(`/api/maintenance/work-orders/equipment/${equipmentId}/history`))
+      requests.push(api.get(`/api/maintenance/downtime/summary?equipmentId=${equipmentId}`))
+    }
+
+    const results = await Promise.allSettled(requests)
     if (requestId !== recordsRequestId.current) return
+    const calibrationResult = results[0]
+    const certificationResult = results[1]
+    const historyResult = !isSysAdmin ? results[2] : null
+    const downtimeResult = !isSysAdmin ? results[3] : null
+
     const errors = []
     if (calibrationResult.status === 'fulfilled') {
       setCalibrations(Array.isArray(calibrationResult.value.data) ? calibrationResult.value.data : [])
@@ -207,9 +237,22 @@ export default function Equipment() {
       setCertifications([])
       errors.push(`Certification: ${errorMessage(certificationResult.reason, 'Unable to load certification history.')}`)
     }
+
+    if (historyResult && historyResult.status === 'fulfilled') {
+      setServiceHistory(historyResult.value.data?.content || historyResult.value.data || [])
+    } else {
+      setServiceHistory([])
+    }
+
+    if (downtimeResult && downtimeResult.status === 'fulfilled') {
+      setDowntimeSummary(downtimeResult.value.data)
+    } else {
+      setDowntimeSummary(null)
+    }
+
     setRecordsError(errors.join(' '))
     setRecordsLoading(false)
-  }, [])
+  }, [user?.roles])
 
   const availableStatuses = useMemo(() => [...new Set(
     equipment.map((item) => String(item.status ?? '').toUpperCase()).filter(Boolean),
@@ -308,6 +351,50 @@ export default function Equipment() {
     } finally {
       deleteLock.current = false
       setDeletingId(null)
+    }
+  }
+
+  function openReportProblem(eq) {
+    setProblemEquipment(eq)
+    setProblemForm({ title: '', description: '', priority: 'MEDIUM' })
+    setProblemError('')
+    setProblemSuccess('')
+    setProblemModalOpen(true)
+  }
+
+  async function submitProblemReport(e) {
+    e.preventDefault()
+    if (!problemEquipment || problemSubmitting) return
+    const valErr = validateMaintenanceRequest({
+      equipmentId: problemEquipment.id,
+      title: problemForm.title,
+      description: problemForm.description,
+      priority: problemForm.priority,
+    })
+    if (valErr) {
+      setProblemError(valErr)
+      return
+    }
+    setProblemSubmitting(true)
+    setProblemError('')
+    setProblemSuccess('')
+    try {
+      const payload = buildMaintenanceRequestPayload({
+        equipmentId: problemEquipment.id,
+        title: problemForm.title,
+        description: problemForm.description,
+        priority: problemForm.priority,
+      })
+      await api.post('/api/maintenance/requests', payload)
+      setProblemSuccess('Maintenance problem reported successfully.')
+      setTimeout(() => {
+        setProblemModalOpen(false)
+        setProblemSuccess('')
+      }, 1500)
+    } catch (err) {
+      setProblemError(errorMessage(err, 'Unable to submit maintenance request.'))
+    } finally {
+      setProblemSubmitting(false)
     }
   }
 
@@ -542,6 +629,24 @@ export default function Equipment() {
                   const tags = Array.isArray(item.tags) ? item.tags : []
                   return <article className="equipment-card" key={item.id}>
                     <div className="equipment-card-top"><div className="equipment-icon" aria-hidden="true">🔬</div><span className={`equipment-status status-badge-${status.toLowerCase()}`}>{status.replaceAll('_', ' ')}</span></div>
+                    {status === 'UNDER_MAINTENANCE' && (
+                      <div className="banner-under-maintenance" style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: 'var(--color-danger, #ef4444)',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12.5px',
+                        fontWeight: 600,
+                        marginTop: '6px',
+                        marginBottom: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}>
+                        <span>⚠️ Under Maintenance — Bookings paused</span>
+                      </div>
+                    )}
                     <span className="equipment-category">{item.category || 'Uncategorized'}</span>
                     <h2>{item.name || `Equipment #${item.id}`}</h2>
                     <p className="equipment-description">{item.description || 'No description provided.'}</p>
@@ -559,7 +664,16 @@ export default function Equipment() {
                           Book equipment
                         </Link>
                       )}
-                      <button type="button" className="secondary-button" disabled={recordsLoading || deletingId != null} onClick={() => selectEquipment(item.id)}>{selectedId === item.id ? 'Refresh records' : 'Calibration & certification'}</button>
+                      {!user?.roles?.includes('SYSTEM_ADMIN') && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => openReportProblem(item)}
+                        >
+                          ⚠️ Report Problem
+                        </button>
+                      )}
+                      <button type="button" className="secondary-button" disabled={recordsLoading || deletingId != null} onClick={() => selectEquipment(item.id)}>{selectedId === item.id ? 'Refresh records' : 'Records & History'}</button>
                       {permissions.canEdit && <button type="button" className="secondary-button" disabled={equipmentSubmitting || deletingId != null} onClick={() => beginEdit(item)}>Edit</button>}
                       {canManageSharing(user?.roles) && (user?.roles?.includes('SYSTEM_ADMIN') || String(user?.institutionId) === String(item.institutionId)) && (
                         <button type="button" className="secondary-button" onClick={() => selectEquipment(item.id)}>
@@ -575,42 +689,154 @@ export default function Equipment() {
 
       {selectedId != null && (
         <section className="booking-form-card">
-          <div className="module-section-title"><div><h2>Records for {selectedEquipment?.name || `equipment #${selectedId}`}</h2><p>Calibration and certification history for the selected equipment.</p></div><button type="button" className="secondary-button" onClick={closeSelectedEquipment}>Close records</button></div>
-          {recordsError && <div className="module-alert" role="alert">{recordsError}</div>}
-          {recordsLoading ? <p role="status">Loading calibration and certification history…</p> : <div className="booking-time-grid">
-            <div><h3>Calibration history</h3>{calibrations.length ? <ul>{calibrations.map((record) => <li key={record.id}>{record.calibrationDate} — next due {record.nextDueDate}; {record.result}{record.notes ? `; ${record.notes}` : ''}</li>)}</ul> : <p>No calibration records.</p>}</div>
-            <div><h3>Certification history</h3>{certifications.length ? <ul>{certifications.map((record) => <li key={record.id}>{record.certificateType} — {record.issuingOrganization}; {record.issueDate} to {record.expiryDate}{record.documentReference ? `; reference: ${record.documentReference}` : ''}</li>)}</ul> : <p>No certification records.</p>}</div>
-          </div>}
-          {permissions.canCreateRecords && <>
-            {recordErrors.length > 0 && <div className="module-alert" role="alert"><ul>{recordErrors.map((message) => <li key={message}>{message}</li>)}</ul></div>}
-            <div className="equipment-card-actions">
-              <button type="button" className="secondary-button" disabled={recordSubmitting} onClick={() => { setShowCalibrationForm((visible) => !visible); setRecordErrors([]) }}>{showCalibrationForm ? 'Close calibration form' : 'Add calibration'}</button>
-              <button type="button" className="secondary-button" disabled={recordSubmitting} onClick={() => { setShowCertificationForm((visible) => !visible); setRecordErrors([]) }}>{showCertificationForm ? 'Close certification form' : 'Add certification'}</button>
+          <div className="module-section-title">
+            <div>
+              <h2>Records for {selectedEquipment?.name || `equipment #${selectedId}`}</h2>
+              <p>Maintenance, service history, and calibration records for the selected equipment.</p>
             </div>
-            <div className="booking-time-grid">
-              {showCalibrationForm && (
-              <form className="booking-form-card" onSubmit={submitCalibration}>
-                <h3>Add calibration record</h3>
-                <div className="form-field"><label htmlFor="cal-date">Calibration date *</label><input id="cal-date" type="date" value={calibrationForm.calibrationDate} onChange={(e) => setCalibrationForm({ ...calibrationForm, calibrationDate: e.target.value })} required /></div>
-                <div className="form-field"><label htmlFor="cal-due">Next due date *</label><input id="cal-due" type="date" value={calibrationForm.nextDueDate} onChange={(e) => setCalibrationForm({ ...calibrationForm, nextDueDate: e.target.value })} required /></div>
-                <div className="form-field"><label htmlFor="cal-result">Result *</label><select id="cal-result" value={calibrationForm.result} onChange={(e) => setCalibrationForm({ ...calibrationForm, result: e.target.value })}><option>PASS</option><option>FAIL</option><option>CONDITIONAL</option></select></div>
-                <div className="form-field"><label htmlFor="cal-notes">Notes</label><textarea id="cal-notes" maxLength={1000} value={calibrationForm.notes} onChange={(e) => setCalibrationForm({ ...calibrationForm, notes: e.target.value })} /></div>
-                <button className="button button-primary" type="submit" disabled={recordSubmitting}>{recordSubmitting ? 'Saving…' : 'Save calibration'}</button>
-              </form>
-              )}
-              {showCertificationForm && (
-              <form className="booking-form-card" onSubmit={submitCertification}>
-                <h3>Add certification record</h3>
-                <div className="form-field"><label htmlFor="cert-type">Certificate type *</label><input id="cert-type" maxLength={150} value={certificationForm.certificateType} onChange={(e) => setCertificationForm({ ...certificationForm, certificateType: e.target.value })} required /></div>
-                <div className="form-field"><label htmlFor="cert-issuer">Issuing organization *</label><input id="cert-issuer" maxLength={200} value={certificationForm.issuingOrganization} onChange={(e) => setCertificationForm({ ...certificationForm, issuingOrganization: e.target.value })} required /></div>
-                <div className="form-field"><label htmlFor="cert-issue">Issue date *</label><input id="cert-issue" type="date" value={certificationForm.issueDate} onChange={(e) => setCertificationForm({ ...certificationForm, issueDate: e.target.value })} required /></div>
-                <div className="form-field"><label htmlFor="cert-expiry">Expiry date *</label><input id="cert-expiry" type="date" value={certificationForm.expiryDate} onChange={(e) => setCertificationForm({ ...certificationForm, expiryDate: e.target.value })} required /></div>
-                <div className="form-field"><label htmlFor="cert-reference">Document reference (not an upload)</label><input id="cert-reference" maxLength={500} value={certificationForm.documentReference} onChange={(e) => setCertificationForm({ ...certificationForm, documentReference: e.target.value })} /></div>
-                <button className="button button-primary" type="submit" disabled={recordSubmitting}>{recordSubmitting ? 'Saving…' : 'Save certification'}</button>
-              </form>
+            <button type="button" className="secondary-button" onClick={closeSelectedEquipment}>Close records</button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+            <button
+              type="button"
+              className={`secondary-button ${recordsTab === 'calibrations' ? 'active' : ''}`}
+              style={{ fontWeight: recordsTab === 'calibrations' ? 700 : 500 }}
+              onClick={() => setRecordsTab('calibrations')}
+            >
+              📜 Calibration & Certification
+            </button>
+            {!user?.roles?.includes('SYSTEM_ADMIN') && (
+              <>
+                <button
+                  type="button"
+                  className={`secondary-button ${recordsTab === 'history' ? 'active' : ''}`}
+                  style={{ fontWeight: recordsTab === 'history' ? 700 : 500 }}
+                  onClick={() => setRecordsTab('history')}
+                >
+                  🔧 Service History ({serviceHistory.length})
+                </button>
+                <button
+                  type="button"
+                  className={`secondary-button ${recordsTab === 'downtime' ? 'active' : ''}`}
+                  style={{ fontWeight: recordsTab === 'downtime' ? 700 : 500 }}
+                  onClick={() => setRecordsTab('downtime')}
+                >
+                  📉 Downtime Analytics
+                </button>
+              </>
+            )}
+          </div>
+
+          {recordsTab === 'calibrations' && (
+            <>
+              {recordsError && <div className="module-alert" role="alert">{recordsError}</div>}
+              {recordsLoading ? <p role="status">Loading calibration and certification history…</p> : <div className="booking-time-grid">
+                <div><h3>Calibration history</h3>{calibrations.length ? <ul>{calibrations.map((record) => <li key={record.id}>{record.calibrationDate} — next due {record.nextDueDate}; {record.result}{record.notes ? `; ${record.notes}` : ''}</li>)}</ul> : <p>No calibration records.</p>}</div>
+                <div><h3>Certification history</h3>{certifications.length ? <ul>{certifications.map((record) => <li key={record.id}>{record.certificateType} — {record.issuingOrganization}; {record.issueDate} to {record.expiryDate}{record.documentReference ? `; reference: ${record.documentReference}` : ''}</li>)}</ul> : <p>No certification records.</p>}</div>
+              </div>}
+              {permissions.canCreateRecords && <>
+                {recordErrors.length > 0 && <div className="module-alert" role="alert"><ul>{recordErrors.map((message) => <li key={message}>{message}</li>)}</ul></div>}
+                <div className="equipment-card-actions">
+                  <button type="button" className="secondary-button" disabled={recordSubmitting} onClick={() => { setShowCalibrationForm((visible) => !visible); setRecordErrors([]) }}>{showCalibrationForm ? 'Close calibration form' : 'Add calibration'}</button>
+                  <button type="button" className="secondary-button" disabled={recordSubmitting} onClick={() => { setShowCertificationForm((visible) => !visible); setRecordErrors([]) }}>{showCertificationForm ? 'Close certification form' : 'Add certification'}</button>
+                </div>
+                <div className="booking-time-grid">
+                  {showCalibrationForm && (
+                  <form className="booking-form-card" onSubmit={submitCalibration}>
+                    <h3>Add calibration record</h3>
+                    <div className="form-field"><label htmlFor="cal-date">Calibration date *</label><input id="cal-date" type="date" value={calibrationForm.calibrationDate} onChange={(e) => setCalibrationForm({ ...calibrationForm, calibrationDate: e.target.value })} required /></div>
+                    <div className="form-field"><label htmlFor="cal-due">Next due date *</label><input id="cal-due" type="date" value={calibrationForm.nextDueDate} onChange={(e) => setCalibrationForm({ ...calibrationForm, nextDueDate: e.target.value })} required /></div>
+                    <div className="form-field"><label htmlFor="cal-result">Result *</label><select id="cal-result" value={calibrationForm.result} onChange={(e) => setCalibrationForm({ ...calibrationForm, result: e.target.value })}><option>PASS</option><option>FAIL</option><option>CONDITIONAL</option></select></div>
+                    <div className="form-field"><label htmlFor="cal-notes">Notes</label><textarea id="cal-notes" maxLength={1000} value={calibrationForm.notes} onChange={(e) => setCalibrationForm({ ...calibrationForm, notes: e.target.value })} /></div>
+                    <button className="button button-primary" type="submit" disabled={recordSubmitting}>{recordSubmitting ? 'Saving…' : 'Save calibration'}</button>
+                  </form>
+                  )}
+                  {showCertificationForm && (
+                  <form className="booking-form-card" onSubmit={submitCertification}>
+                    <h3>Add certification record</h3>
+                    <div className="form-field"><label htmlFor="cert-type">Certificate type *</label><input id="cert-type" maxLength={150} value={certificationForm.certificateType} onChange={(e) => setCertificationForm({ ...certificationForm, certificateType: e.target.value })} required /></div>
+                    <div className="form-field"><label htmlFor="cert-issuer">Issuing organization *</label><input id="cert-issuer" maxLength={200} value={certificationForm.issuingOrganization} onChange={(e) => setCertificationForm({ ...certificationForm, issuingOrganization: e.target.value })} required /></div>
+                    <div className="form-field"><label htmlFor="cert-issue">Issue date *</label><input id="cert-issue" type="date" value={certificationForm.issueDate} onChange={(e) => setCertificationForm({ ...certificationForm, issueDate: e.target.value })} required /></div>
+                    <div className="form-field"><label htmlFor="cert-expiry">Expiry date *</label><input id="cert-expiry" type="date" value={certificationForm.expiryDate} onChange={(e) => setCertificationForm({ ...certificationForm, expiryDate: e.target.value })} required /></div>
+                    <div className="form-field"><label htmlFor="cert-reference">Document reference (not an upload)</label><input id="cert-reference" maxLength={500} value={certificationForm.documentReference} onChange={(e) => setCertificationForm({ ...certificationForm, documentReference: e.target.value })} /></div>
+                    <button className="button button-primary" type="submit" disabled={recordSubmitting}>{recordSubmitting ? 'Saving…' : 'Save certification'}</button>
+                  </form>
+                  )}
+                </div>
+              </>}
+            </>
+          )}
+
+          {recordsTab === 'history' && (
+            <div style={{ marginTop: '10px' }}>
+              <h3 style={{ margin: '0 0 10px', fontSize: '1.05rem', fontWeight: 700 }}>Past Service & Maintenance History</h3>
+              {historyLoading ? (
+                <p>Loading service history…</p>
+              ) : serviceHistory.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)' }}>No completed maintenance work orders recorded for this equipment.</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="module-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
+                        <th style={{ padding: '8px' }}>Order #</th>
+                        <th style={{ padding: '8px' }}>Title</th>
+                        <th style={{ padding: '8px' }}>Type</th>
+                        <th style={{ padding: '8px' }}>Technician</th>
+                        <th style={{ padding: '8px' }}>Completed At</th>
+                        <th style={{ padding: '8px' }}>Cost</th>
+                        <th style={{ padding: '8px' }}>Resolution Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {serviceHistory.map((wo) => (
+                        <tr key={wo.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '8px', fontWeight: 700, fontFamily: 'monospace' }}>{wo.workOrderNumber}</td>
+                          <td style={{ padding: '8px', fontWeight: 600 }}>{wo.title}</td>
+                          <td style={{ padding: '8px' }}>{wo.workOrderType}</td>
+                          <td style={{ padding: '8px' }}>{wo.assignedTechnicianName || '—'}</td>
+                          <td style={{ padding: '8px' }}>{wo.completedAt ? new Date(wo.completedAt).toLocaleString() : '—'}</td>
+                          <td style={{ padding: '8px' }}>{wo.cost ? `₹${wo.cost}` : '—'}</td>
+                          <td style={{ padding: '8px' }}>{wo.resolutionNotes || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
-          </>}
+          )}
+
+          {recordsTab === 'downtime' && (
+            <div style={{ marginTop: '10px' }}>
+              <h3 style={{ margin: '0 0 10px', fontSize: '1.05rem', fontWeight: 700 }}>Downtime & Operational Reliability</h3>
+              {downtimeLoading ? (
+                <p>Loading downtime analytics…</p>
+              ) : !downtimeSummary ? (
+                <p style={{ color: 'var(--text-muted)' }}>No downtime recorded for this equipment.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+                  <div style={{ background: 'var(--surface-muted, #f8fafc)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>Total Raw Downtime</span>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '4px' }}>{downtimeSummary.totalRawDowntimeHours} <small style={{ fontSize: '12px' }}>hrs</small></div>
+                  </div>
+                  <div style={{ background: 'var(--surface-muted, #f8fafc)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--color-danger, #ef4444)', fontWeight: 600 }}>Operating Hours Lost</span>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '4px', color: 'var(--color-danger, #ef4444)' }}>{downtimeSummary.totalOperatingDowntimeHours} <small style={{ fontSize: '12px' }}>hrs</small></div>
+                  </div>
+                  <div style={{ background: 'var(--surface-muted, #f8fafc)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>Maintenance Incidents</span>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '4px' }}>{downtimeSummary.totalWorkOrders}</div>
+                  </div>
+                  <div style={{ background: 'var(--surface-muted, #f8fafc)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>Facility Impact</span>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '4px' }}>{downtimeSummary.openHoursLostPercentage}%</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {isOwnerAdminOrSystemAdmin && (
             <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
@@ -722,6 +948,56 @@ export default function Equipment() {
             </div>
           )}
         </section>
+      )}
+
+      {problemModalOpen && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '500px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 700 }}>Report Problem: {problemEquipment?.name}</h3>
+            {problemSuccess && <div className="auth-success" style={{ marginBottom: '12px' }}>{problemSuccess}</div>}
+            {problemError && <div className="module-alert" style={{ marginBottom: '12px' }}>{problemError}</div>}
+            <form onSubmit={submitProblemReport} className="booking-form">
+              <div className="form-field">
+                <label>Problem Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Laser power fluctuating, vacuum seal leaking"
+                  value={problemForm.title}
+                  onChange={(e) => setProblemForm({ ...problemForm, title: e.target.value })}
+                />
+              </div>
+              <div className="form-field">
+                <label>Description *</label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Describe what occurred, any error messages, or symptoms observed…"
+                  value={problemForm.description}
+                  onChange={(e) => setProblemForm({ ...problemForm, description: e.target.value })}
+                />
+              </div>
+              <div className="form-field">
+                <label>Priority</label>
+                <select
+                  value={problemForm.priority}
+                  onChange={(e) => setProblemForm({ ...problemForm, priority: e.target.value })}
+                >
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                <button type="button" className="secondary-button" onClick={() => setProblemModalOpen(false)}>Cancel</button>
+                <button type="submit" className="button button-primary" disabled={problemSubmitting}>
+                  {problemSubmitting ? 'Submitting…' : 'Submit Report'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       <p className="module-footnote">Signed-in account institution: {currentInstitutionName}. The backend enforces institution access for each request.</p>

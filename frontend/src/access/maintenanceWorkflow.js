@@ -20,6 +20,16 @@ export const CALIBRATION_COMPLETE_ROLES = Object.freeze([
   'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN',
 ])
 
+export const WORK_ORDER_STATUSES = Object.freeze([
+  'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED',
+])
+export const WORK_ORDER_TYPES = Object.freeze(['CORRECTIVE', 'PREVENTIVE'])
+export const SCHEDULE_STATUSES = Object.freeze(['OK', 'DUE_SOON', 'OVERDUE', 'INACTIVE'])
+
+export function isSystemAdminForbidden(roles) {
+  return Array.isArray(roles) && roles.includes('SYSTEM_ADMIN')
+}
+
 export function canCreateMaintenance(roles) {
   return hasValidRoles(roles) && roles.some((role) => MAINTENANCE_CREATE_ROLES.includes(role))
 }
@@ -30,6 +40,143 @@ export function canScheduleCalibration(roles) {
 
 export function canCompleteCalibration(roles) {
   return hasValidRoles(roles) && roles.some((role) => CALIBRATION_COMPLETE_ROLES.includes(role))
+}
+
+export function canManageWorkOrders(roles) {
+  return hasValidRoles(roles) && !isSystemAdminForbidden(roles) && roles.includes('LAB_MANAGER')
+}
+
+export function canViewWorkOrders(roles) {
+  return hasValidRoles(roles) && !isSystemAdminForbidden(roles)
+    && (roles.includes('LAB_MANAGER') || roles.includes('INSTITUTION_ADMIN') || roles.includes('LAB_TECHNICIAN'))
+}
+
+export function canSubmitMaintenanceRequest(roles) {
+  return hasValidRoles(roles) && !isSystemAdminForbidden(roles)
+}
+
+export function canReviewMaintenanceRequests(roles) {
+  return hasValidRoles(roles) && !isSystemAdminForbidden(roles) && roles.includes('LAB_MANAGER')
+}
+
+export function validateMaintenanceRequest({ equipmentId, title, description, priority }) {
+  if (!Number.isInteger(Number(equipmentId)) || Number(equipmentId) <= 0) return 'Select equipment.'
+  if (!String(title || '').trim()) return 'Title is required.'
+  if (String(title).trim().length > 150) return 'Title must be 150 characters or fewer.'
+  if (!String(description || '').trim()) return 'Description is required.'
+  if (String(description).trim().length > 2000) return 'Description must be 2000 characters or fewer.'
+  if (priority && !MAINTENANCE_PRIORITIES.includes(priority.toUpperCase())) return 'Select a valid priority.'
+  return ''
+}
+
+export function buildMaintenanceRequestPayload({ equipmentId, title, description, priority }) {
+  return {
+    equipmentId: Number(equipmentId),
+    title: String(title || '').trim(),
+    description: String(description || '').trim(),
+    priority: String(priority || 'MEDIUM').toUpperCase(),
+  }
+}
+
+export function validateWorkOrderCreate({ equipmentId, title, description, type, priority }) {
+  if (!Number.isInteger(Number(equipmentId)) || Number(equipmentId) <= 0) return 'Select equipment.'
+  if (!String(title || '').trim()) return 'Title is required.'
+  if (String(title).trim().length > 150) return 'Title must be 150 characters or fewer.'
+  if (!String(description || '').trim()) return 'Description is required.'
+  if (type && !WORK_ORDER_TYPES.includes(type.toUpperCase())) return 'Select a valid work order type.'
+  if (priority && !MAINTENANCE_PRIORITIES.includes(priority.toUpperCase())) return 'Select a valid priority.'
+  return ''
+}
+
+export function buildWorkOrderCreatePayload({
+  equipmentId,
+  scheduleId,
+  title,
+  description,
+  type,
+  priority,
+  assignedTo,
+  expectedEndTime,
+}) {
+  const payload = {
+    equipmentId: Number(equipmentId),
+    title: String(title || '').trim(),
+    description: String(description || '').trim(),
+    type: String(type || 'CORRECTIVE').toUpperCase(),
+    priority: String(priority || 'MEDIUM').toUpperCase(),
+  }
+  if (Number.isInteger(Number(scheduleId)) && Number(scheduleId) > 0) {
+    payload.scheduleId = Number(scheduleId)
+  }
+  if (Number.isInteger(Number(assignedTo)) && Number(assignedTo) > 0) {
+    payload.assignedTo = Number(assignedTo)
+  }
+  if (expectedEndTime) {
+    payload.expectedEndTime = expectedEndTime
+  }
+  return payload
+}
+
+export function validatePreventiveSchedule({ equipmentId, title, repeatPeriodDays, nextDueDate }) {
+  if (!Number.isInteger(Number(equipmentId)) || Number(equipmentId) <= 0) return 'Select equipment.'
+  if (!String(title || '').trim()) return 'Title is required.'
+  if (String(title).trim().length > 150) return 'Title must be 150 characters or fewer.'
+  const period = Number(repeatPeriodDays)
+  if (!Number.isInteger(period) || period <= 0 || period > 3650) return 'Repeat period must be between 1 and 3650 days.'
+  if (!nextDueDate) return 'Next due date is required.'
+  return ''
+}
+
+export function buildPreventiveSchedulePayload({
+  equipmentId,
+  title,
+  description,
+  repeatPeriodDays,
+  nextDueDate,
+  active,
+}) {
+  return {
+    equipmentId: Number(equipmentId),
+    title: String(title || '').trim(),
+    description: String(description || '').trim(),
+    repeatPeriodDays: Number(repeatPeriodDays),
+    nextDueDate: String(nextDueDate),
+    active: active !== false,
+  }
+}
+
+export function getWorkOrderStatusBadge(status) {
+  const norm = String(status || '').toUpperCase()
+  switch (norm) {
+    case 'OPEN':
+      return { label: 'Open', tone: 'neutral' }
+    case 'ASSIGNED':
+      return { label: 'Assigned', tone: 'info' }
+    case 'IN_PROGRESS':
+      return { label: 'In Progress', tone: 'warning' }
+    case 'COMPLETED':
+      return { label: 'Completed', tone: 'success' }
+    case 'CANCELLED':
+      return { label: 'Cancelled', tone: 'danger' }
+    default:
+      return { label: status || 'Unknown', tone: 'neutral' }
+  }
+}
+
+export function getScheduleStatusBadge(status) {
+  const norm = String(status || '').toUpperCase()
+  switch (norm) {
+    case 'OK':
+      return { label: 'Normal / OK', tone: 'success' }
+    case 'DUE_SOON':
+      return { label: 'Due Soon', tone: 'warning' }
+    case 'OVERDUE':
+      return { label: 'Overdue', tone: 'danger' }
+    case 'INACTIVE':
+      return { label: 'Inactive', tone: 'neutral' }
+    default:
+      return { label: status || 'Unknown', tone: 'neutral' }
+  }
 }
 
 export function getMaintenanceActionPlan(roles, record) {

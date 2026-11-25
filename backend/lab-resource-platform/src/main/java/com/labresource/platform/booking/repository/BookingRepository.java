@@ -68,6 +68,21 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("windowEnd") java.time.LocalDateTime windowEnd
     );
 
+    @Query("""
+            select b from Booking b
+            where b.equipmentId = :equipmentId
+              and b.status in :statuses
+              and b.startTime < :windowEnd
+              and b.endTime > :windowStart
+            order by b.startTime asc
+            """)
+    List<Booking> findOverlappingBookingsForMaintenance(
+            @Param("equipmentId") Long equipmentId,
+            @Param("statuses") List<String> statuses,
+            @Param("windowStart") java.time.LocalDateTime windowStart,
+            @Param("windowEnd") java.time.LocalDateTime windowEnd
+    );
+
     List<Booking> findBySharingAgreementId(Long sharingAgreementId);
 
     List<Booking> findBySharingAgreementIdIn(List<Long> sharingAgreementIds);
