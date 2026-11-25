@@ -17,6 +17,11 @@ import Maintenance from './pages/Maintenance'
 import Calibration from './pages/Calibration'
 import MyTasks from './pages/MyTasks'
 import Technicians from './pages/Technicians'
+import MyUsageCost from './pages/MyUsageCost'
+import Charges from './pages/Charges'
+import CostOverview from './pages/CostOverview'
+import Budgets from './pages/Budgets'
+import Invoices from './pages/Invoices'
 import NotFound from './pages/NotFound'
 import PasswordReset from './pages/PasswordReset'
 import Profile from './pages/Profile'
@@ -53,9 +58,20 @@ export default function App() {
           <Route path="/calibration" element={<Calibration />} />
           <Route path="/my-tasks" element={<MyTasks />} />
           <Route path="/technicians" element={<Technicians />} />
+          <Route path="/my-usage-cost" element={<MyUsageCost />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
+        <Route element={<ProtectedRoute allowedRoles={['LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN', 'DEPARTMENT_HEAD']} />}>
+          <Route path="/cost-overview" element={<CostOverview />} />
+        </Route>
+        <Route element={<ProtectedRoute allowedRoles={['LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN']} />}>
+          <Route path="/charges" element={<Charges />} />
+        </Route>
+        <Route element={<ProtectedRoute allowedRoles={['DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN']} />}>
+          <Route path="/budgets" element={<Budgets />} />
+        </Route>
         <Route element={<ProtectedRoute allowedRoles={['INSTITUTION_ADMIN', 'SYSTEM_ADMIN']} />}>
+          <Route path="/invoices" element={<Invoices />} />
           <Route path="/sharing-analytics" element={
             <Suspense fallback={<div className="module-state" role="status">Loading sharing analytics…</div>}>
               <SharingAnalytics />

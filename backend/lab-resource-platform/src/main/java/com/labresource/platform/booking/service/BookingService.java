@@ -18,6 +18,7 @@ import com.labresource.platform.booking.event.BookingReleasedEvent;
 import com.labresource.platform.utilization.entity.Utilization;
 import com.labresource.platform.utilization.repository.UtilizationRepository;
 import com.labresource.platform.booking.waitlist.repository.WaitlistRepository;
+import com.labresource.platform.billing.service.UsageChargeService;
 import com.labresource.platform.sharing.repository.SharingAgreementRepository;
 import com.labresource.platform.sharing.service.ExternalBookingValidator;
 import com.labresource.platform.sharing.service.SharingFeeService;
@@ -59,6 +60,9 @@ public class BookingService {
     @Autowired(required = false)
     private SharingFeeService sharingFeeService;
 
+    @Autowired(required = false)
+    private UsageChargeService usageChargeService;
+
     public void setWaitlistRepository(WaitlistRepository waitlistRepository) {
         this.waitlistRepository = waitlistRepository;
     }
@@ -73,6 +77,10 @@ public class BookingService {
 
     public void setSharingFeeService(SharingFeeService sharingFeeService) {
         this.sharingFeeService = sharingFeeService;
+    }
+
+    public void setUsageChargeService(UsageChargeService usageChargeService) {
+        this.usageChargeService = usageChargeService;
     }
 
     public void populateFeeDetails(Booking booking) {
@@ -569,6 +577,10 @@ public class BookingService {
         booking.setStatus("COMPLETED");
         Booking saved = bookingRepository.save(booking);
         populateFeeDetails(saved);
+        if (usageChargeService != null) {
+            long actualMinutes = Math.max(0, Duration.between(usage.getStartTime(), actualEnd).toMinutes());
+            usageChargeService.createChargeForCompletedBooking(saved, actualMinutes);
+        }
         releaseEquipmentIfAvailable(equipment, saved.getEquipmentId(), now);
         recordAudit(saved.getId(), "CHECKED_OUT", previousStatus, "COMPLETED", actor.getEmail());
         if (actualEnd.isBefore(booking.getEndTime())) {
@@ -616,6 +628,10 @@ public class BookingService {
             booking.setStatus("COMPLETED");
             Booking saved = bookingRepository.save(booking);
             populateFeeDetails(saved);
+            if (usageChargeService != null) {
+                long actualMinutes = Math.max(0, Duration.between(usage.getStartTime(), booking.getEndTime()).toMinutes());
+                usageChargeService.createChargeForCompletedBooking(saved, actualMinutes);
+            }
             releaseEquipmentIfAvailable(equipment, saved.getEquipmentId(), now);
             recordAudit(saved.getId(), "AUTO_COMPLETED", "IN_USE", "COMPLETED", "SYSTEM");
             publishEquipmentChange(saved.getEquipmentId());

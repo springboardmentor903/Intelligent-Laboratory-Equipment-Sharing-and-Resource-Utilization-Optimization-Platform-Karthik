@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +59,9 @@ public class Equipment {
 
     @Column(nullable = false, length = 30)
     private String status = "AVAILABLE";
+
+    @Column(name = "hourly_rate")
+    private BigDecimal hourlyRate;
 
     @Column(nullable = false, columnDefinition = "boolean default false")
     private Boolean shareable = false;

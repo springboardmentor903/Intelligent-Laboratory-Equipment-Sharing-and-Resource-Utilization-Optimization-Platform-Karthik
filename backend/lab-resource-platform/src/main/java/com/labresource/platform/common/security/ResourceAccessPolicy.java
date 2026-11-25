@@ -216,7 +216,7 @@ public class ResourceAccessPolicy {
         return false;
     }
 
-    private java.util.Optional<User> currentUser(Authentication auth) {
+    public java.util.Optional<User> currentUser(Authentication auth) {
         if (auth == null || auth.getName() == null) return java.util.Optional.empty();
         return users.findByEmail(auth.getName().trim().toLowerCase());
     }

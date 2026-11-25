@@ -23,6 +23,8 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>, Jpa
 
     List<Equipment> findByInstitutionId(Long institutionId);
 
+    List<Equipment> findByInstitutionIdAndDepartmentId(Long institutionId, Long departmentId);
+
     boolean existsByAssetTagIgnoreCase(String assetTag);
 
     boolean existsByAssetTagIgnoreCaseAndIdNot(String assetTag, Long id);

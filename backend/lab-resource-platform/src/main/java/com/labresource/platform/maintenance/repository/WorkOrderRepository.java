@@ -50,6 +50,20 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     );
 
     @Query("""
+            SELECT w.equipmentId, COALESCE(SUM(w.cost), 0) FROM WorkOrder w
+            WHERE w.equipmentId IN :equipmentIds
+              AND w.status = 'COMPLETED'
+              AND (:start IS NULL OR w.completedAt >= :start)
+              AND (:end IS NULL OR w.completedAt <= :end)
+            GROUP BY w.equipmentId
+            """)
+    List<Object[]> sumCompletedCostByEquipmentIdsAndPeriod(
+            @Param("equipmentIds") List<Long> equipmentIds,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("""
             SELECT w FROM WorkOrder w
             WHERE w.equipmentId IN :equipmentIds
               AND (:status IS NULL OR w.status = :status)

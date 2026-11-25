@@ -3,6 +3,12 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { getNavigationItems } from '../access/roleAccess.js'
+import {
+  canViewCostOverview,
+  canViewCharges,
+  canViewBudgets,
+  canManageInvoices,
+} from '../access/billingWorkflow.js'
 
 function SunIcon() {
   return (
@@ -59,6 +65,11 @@ const ROUTE_ICONS = {
   '/maintenance': '🔧',
   '/profile': '👤',
   '/sharing-analytics': '📉',
+  '/my-usage-cost': '💳',
+  '/cost-overview': '📊',
+  '/charges': '🧾',
+  '/budgets': '💰',
+  '/invoices': '📑',
   '/login': '🔑',
   '/register': '📝',
   '/register-institution': '🏛️',
@@ -206,6 +217,52 @@ export default function Navbar() {
                     <span className="sidebar-link-text">{item.label}</span>
                   </NavLink>
                 ))}
+
+                <div className="sidebar-nav-section-title" style={{ marginTop: 14 }}>
+                  Billing & Costs
+                </div>
+                <NavLink to="/my-usage-cost" className={navLinkClass} onClick={closeDrawer}>
+                  <span className="sidebar-link-icon" aria-hidden="true">
+                    {ROUTE_ICONS['/my-usage-cost']}
+                  </span>
+                  <span className="sidebar-link-text">My Usage Costs</span>
+                </NavLink>
+
+                {canViewCostOverview(user?.roles) && (
+                  <NavLink to="/cost-overview" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/cost-overview']}
+                    </span>
+                    <span className="sidebar-link-text">Cost Overview</span>
+                  </NavLink>
+                )}
+
+                {canViewCharges(user?.roles) && (
+                  <NavLink to="/charges" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/charges']}
+                    </span>
+                    <span className="sidebar-link-text">Charges</span>
+                  </NavLink>
+                )}
+
+                {canViewBudgets(user?.roles) && (
+                  <NavLink to="/budgets" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/budgets']}
+                    </span>
+                    <span className="sidebar-link-text">Budgets</span>
+                  </NavLink>
+                )}
+
+                {canManageInvoices(user?.roles) && (
+                  <NavLink to="/invoices" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/invoices']}
+                    </span>
+                    <span className="sidebar-link-text">Invoices</span>
+                  </NavLink>
+                )}
               </>
             )}
           </div>
