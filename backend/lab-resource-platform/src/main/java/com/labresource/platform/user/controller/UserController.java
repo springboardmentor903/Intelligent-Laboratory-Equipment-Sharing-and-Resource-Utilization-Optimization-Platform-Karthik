@@ -1,5 +1,7 @@
 package com.labresource.platform.user.controller;
 
+import com.labresource.platform.maintenance.model.TechnicianWorkloadProjection;
+import com.labresource.platform.maintenance.repository.WorkOrderRepository;
 import com.labresource.platform.user.dto.PendingMembershipResponse;
 import com.labresource.platform.user.dto.SystemAdminApplicationRequest;
 import com.labresource.platform.user.dto.UserRegistrationRequest;
@@ -7,6 +9,8 @@ import com.labresource.platform.user.entity.User;
 import com.labresource.platform.user.service.UserService;
 import com.labresource.platform.common.security.ResourceAccessPolicy;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,9 +18,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -24,10 +28,20 @@ public class UserController {
 
     private final UserService userService;
     private final ResourceAccessPolicy resourceAccess;
+    private final WorkOrderRepository workOrderRepository;
 
-    public UserController(UserService userService, ResourceAccessPolicy resourceAccess) {
+    @Autowired
+    public UserController(
+            UserService userService,
+            ResourceAccessPolicy resourceAccess,
+            @Lazy WorkOrderRepository workOrderRepository) {
         this.userService = userService;
         this.resourceAccess = resourceAccess;
+        this.workOrderRepository = workOrderRepository;
+    }
+
+    public UserController(UserService userService, ResourceAccessPolicy resourceAccess) {
+        this(userService, resourceAccess, null);
     }
 
     @PostMapping("/register")
@@ -79,13 +93,29 @@ public class UserController {
     public ResponseEntity<List<Map<String, Object>>> getTechnicians(Authentication authentication) {
         Long institutionId = resourceAccess.scopedInstitutionId(null, authentication);
         List<User> technicians = userService.getApprovedTechnicians(institutionId);
+
+        List<Long> techIds = technicians.stream().map(User::getId).toList();
+        Map<Long, TechnicianWorkloadProjection> workloadMap = (workOrderRepository != null && !techIds.isEmpty())
+                ? workOrderRepository.findWorkloadByTechnicianIds(techIds, LocalDateTime.now()).stream()
+                    .collect(Collectors.toMap(TechnicianWorkloadProjection::getTechnicianId, p -> p, (a, b) -> a))
+                : Map.of();
+
         List<Map<String, Object>> result = technicians.stream()
-                .map(u -> Map.<String, Object>of(
-                        "id", u.getId(),
-                        "fullName", u.getFullName() != null ? u.getFullName() : "Technician #" + u.getId(),
-                        "email", u.getEmail(),
-                        "institutionId", u.getInstitutionId() != null ? u.getInstitutionId() : 0L
-                ))
+                .map(u -> {
+                    TechnicianWorkloadProjection p = workloadMap.get(u.getId());
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("id", u.getId());
+                    map.put("fullName", u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : "Technician #" + u.getId());
+                    map.put("email", u.getEmail());
+                    map.put("institutionId", u.getInstitutionId() != null ? u.getInstitutionId() : 0L);
+                    map.put("departmentId", u.getDepartmentId());
+                    map.put("activeTasks", p != null && p.getActiveTasks() != null ? p.getActiveTasks() : 0L);
+                    map.put("inProgressTasks", p != null && p.getInProgressTasks() != null ? p.getInProgressTasks() : 0L);
+                    map.put("overdueTasks", p != null && p.getOverdueTasks() != null ? p.getOverdueTasks() : 0L);
+                    map.put("totalTasks", p != null && p.getTotalTasks() != null ? p.getTotalTasks() : 0L);
+                    map.put("nextScheduledDate", p != null ? p.getNextScheduledDate() : null);
+                    return map;
+                })
                 .toList();
         return ResponseEntity.ok(result);
     }

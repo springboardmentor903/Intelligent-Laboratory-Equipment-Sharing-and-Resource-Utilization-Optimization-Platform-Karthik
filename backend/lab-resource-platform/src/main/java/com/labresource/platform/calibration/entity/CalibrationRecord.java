@@ -56,6 +56,15 @@ public class CalibrationRecord {
     @Column(name = "certificate_number", length = 100)
     private String certificateNumber;
 
+    @Column(name = "certificate_document_id")
+    private Long certificateDocumentId;
+
+    @Column(name = "certificate_reference", length = 500)
+    private String certificateReference;
+
+    @Column(name = "work_order_id")
+    private Long workOrderId;
+
     @Column(name = "scheduled_date")
     private LocalDate scheduledDate;
 

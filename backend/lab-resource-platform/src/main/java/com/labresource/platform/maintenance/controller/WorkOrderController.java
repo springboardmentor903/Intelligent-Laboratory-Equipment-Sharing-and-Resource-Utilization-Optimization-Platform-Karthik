@@ -3,6 +3,9 @@ package com.labresource.platform.maintenance.controller;
 import com.labresource.platform.common.security.ResourceAccessPolicy;
 import com.labresource.platform.maintenance.entity.WorkOrder;
 import com.labresource.platform.maintenance.entity.WorkOrderServiceLog;
+import com.labresource.platform.maintenance.model.CompleteWorkOrderRequest;
+import com.labresource.platform.maintenance.model.TechnicianTasksResponse;
+import com.labresource.platform.maintenance.model.TechnicianWorkloadDTO;
 import com.labresource.platform.maintenance.service.WorkOrderService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -192,22 +196,89 @@ public class WorkOrderController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
 
-        String resolutionNotes = null;
-        BigDecimal cost = null;
+        CompleteWorkOrderRequest req = new CompleteWorkOrderRequest();
 
         if (body != null) {
-            if (body.get("resolutionNotes") != null) resolutionNotes = body.get("resolutionNotes").toString();
-            else if (body.get("notes") != null) resolutionNotes = body.get("notes").toString();
+            if (body.get("resolutionNotes") != null) req.setResolutionNotes(body.get("resolutionNotes").toString());
+            else if (body.get("notes") != null) req.setResolutionNotes(body.get("notes").toString());
 
             if (body.get("cost") != null) {
                 try {
-                    cost = new BigDecimal(body.get("cost").toString());
+                    req.setCost(new BigDecimal(body.get("cost").toString()));
+                } catch (Exception ignored) {}
+            }
+
+            if (body.get("calibrationDate") != null) {
+                try {
+                    req.setCalibrationDate(LocalDate.parse(body.get("calibrationDate").toString()));
+                } catch (Exception ignored) {}
+            }
+            if (body.get("result") != null) {
+                req.setResult(body.get("result").toString());
+            }
+            if (body.get("nextDueDate") != null) {
+                try {
+                    req.setNextDueDate(LocalDate.parse(body.get("nextDueDate").toString()));
+                } catch (Exception ignored) {}
+            }
+            if (body.get("certificateNumber") != null) {
+                req.setCertificateNumber(body.get("certificateNumber").toString());
+            }
+            if (body.get("calibrationNotes") != null) {
+                req.setCalibrationNotes(body.get("calibrationNotes").toString());
+            }
+            if (body.get("documentId") != null) {
+                try {
+                    req.setDocumentId(Long.valueOf(body.get("documentId").toString()));
+                } catch (Exception ignored) {}
+            } else if (body.get("certificateDocumentId") != null) {
+                try {
+                    req.setDocumentId(Long.valueOf(body.get("certificateDocumentId").toString()));
+                } catch (Exception ignored) {}
+            }
+            if (body.get("reportDocumentId") != null) {
+                try {
+                    req.setReportDocumentId(Long.valueOf(body.get("reportDocumentId").toString()));
                 } catch (Exception ignored) {}
             }
         }
 
-        WorkOrder completed = workOrderService.completeWorkOrder(id, resolutionNotes, cost, authentication.getName());
+        WorkOrder completed = workOrderService.completeWorkOrder(id, req, authentication.getName());
         return ResponseEntity.ok(completed);
+    }
+
+    @GetMapping("/my-tasks")
+    public ResponseEntity<TechnicianTasksResponse> getMyTasks(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) String workOrderType,
+            @RequestParam(required = false) String taskGroup,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "priority,asc") String sort,
+            Authentication authentication) {
+        forbidSystemAdmin(authentication);
+        if (authentication == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+
+        Sort sortObj = parseSort(sort, "scheduledDate");
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), sortObj);
+        TechnicianTasksResponse response = workOrderService.getTechnicianTasks(
+                null, status, priority, workOrderType, taskGroup, pageable, authentication.getName()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/technicians")
+    public ResponseEntity<List<TechnicianWorkloadDTO>> getTechniciansWorkload(
+            @RequestParam(required = false) Long institutionId,
+            Authentication authentication) {
+        forbidSystemAdmin(authentication);
+        if (authentication == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(workOrderService.getTechniciansWorkload(institutionId, authentication.getName()));
     }
 
     @PostMapping("/{id}/cancel")

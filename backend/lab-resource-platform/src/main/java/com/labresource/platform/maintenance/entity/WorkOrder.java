@@ -80,6 +80,15 @@ public class WorkOrder {
     @Column(name = "resolution_notes", length = 1000)
     private String resolutionNotes;
 
+    @Column(name = "report_document_id")
+    private Long reportDocumentId;
+
+    @Column(name = "report_reference", length = 500)
+    private String reportReference;
+
+    @Column(name = "calibration_record_id")
+    private Long calibrationRecordId;
+
     @Column(name = "cost", precision = 12, scale = 2)
     private BigDecimal cost;
 
@@ -112,4 +121,10 @@ public class WorkOrder {
 
     @Transient
     private String creatorName;
+
+    @Transient
+    private Boolean isOverdue;
+
+    @Transient
+    private String taskGroup;
 }

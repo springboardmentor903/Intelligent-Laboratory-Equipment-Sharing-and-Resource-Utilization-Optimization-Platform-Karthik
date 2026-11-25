@@ -96,7 +96,8 @@ public class SecurityConfig {
                                 HttpMethod.GET,
                                 "/api/roles",
                                 "/api/institutions",
-                                "/api/institutions/*/departments/public"
+                                "/api/institutions/*/departments/public",
+                                "/api/documents/raw"
                         ).permitAll()
 
                         // All other endpoints require authentication

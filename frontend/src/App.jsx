@@ -14,6 +14,9 @@ import BookingDetails from './pages/BookingDetails'
 import Utilization from './pages/Utilization'
 import Monitoring from './pages/Monitoring'
 import Maintenance from './pages/Maintenance'
+import Calibration from './pages/Calibration'
+import MyTasks from './pages/MyTasks'
+import Technicians from './pages/Technicians'
 import NotFound from './pages/NotFound'
 import PasswordReset from './pages/PasswordReset'
 import Profile from './pages/Profile'
@@ -47,6 +50,9 @@ export default function App() {
           <Route path="/utilization" element={<Utilization />} />
           <Route path="/monitoring" element={<Monitoring />} />
           <Route path="/maintenance" element={<Maintenance />} />
+          <Route path="/calibration" element={<Calibration />} />
+          <Route path="/my-tasks" element={<MyTasks />} />
+          <Route path="/technicians" element={<Technicians />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['INSTITUTION_ADMIN', 'SYSTEM_ADMIN']} />}>

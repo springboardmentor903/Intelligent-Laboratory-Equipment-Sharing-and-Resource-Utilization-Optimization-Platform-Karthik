@@ -4,15 +4,22 @@ import com.labresource.platform.booking.entity.Booking;
 import com.labresource.platform.booking.repository.BookingAuditLogRepository;
 import com.labresource.platform.booking.repository.BookingRepository;
 import com.labresource.platform.booking.waitlist.repository.WaitlistRepository;
+import com.labresource.platform.calibration.entity.CalibrationRecord;
+import com.labresource.platform.calibration.repository.CalibrationRecordRepository;
 import com.labresource.platform.equipment.entity.Equipment;
 import com.labresource.platform.equipment.repository.EquipmentRepository;
 import com.labresource.platform.maintenance.entity.EquipmentDowntimeLog;
 import com.labresource.platform.maintenance.entity.WorkOrder;
 import com.labresource.platform.maintenance.entity.WorkOrderServiceLog;
+import com.labresource.platform.maintenance.model.CompleteWorkOrderRequest;
+import com.labresource.platform.maintenance.model.TechnicianTasksResponse;
+import com.labresource.platform.maintenance.model.TechnicianWorkloadDTO;
+import com.labresource.platform.maintenance.model.TechnicianWorkloadProjection;
 import com.labresource.platform.maintenance.repository.EquipmentDowntimeLogRepository;
 import com.labresource.platform.maintenance.repository.PreventiveMaintenanceScheduleRepository;
 import com.labresource.platform.maintenance.repository.WorkOrderRepository;
 import com.labresource.platform.maintenance.repository.WorkOrderServiceLogRepository;
+import com.labresource.platform.storage.repository.StoredDocumentRepository;
 import com.labresource.platform.user.entity.Role;
 import com.labresource.platform.user.entity.User;
 import com.labresource.platform.user.entity.UserRole;
@@ -56,6 +63,8 @@ class WorkOrderServiceTests {
     @Mock private WaitlistRepository waitlistRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private DowntimeAnalyticsService downtimeAnalyticsService;
+    @Mock private CalibrationRecordRepository calibrationRecordRepository;
+    @Mock private StoredDocumentRepository storedDocumentRepository;
 
     private WorkOrderService service;
 
@@ -82,7 +91,9 @@ class WorkOrderServiceTests {
                 bookingAuditLogRepository,
                 waitlistRepository,
                 eventPublisher,
-                downtimeAnalyticsService
+                downtimeAnalyticsService,
+                calibrationRecordRepository,
+                storedDocumentRepository
         );
 
         managerUser = new User();
@@ -243,5 +254,117 @@ class WorkOrderServiceTests {
                 service.createWorkOrder(100L, null, "T", "D", "PREVENTIVE", "LOW", null, null, "admin@sys.com"));
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    void completeWorkOrder_withCalibrationDetails_createsCalibrationRecordInSameTransaction() {
+        mockUser(managerUser, managerRole);
+
+        WorkOrder wo = new WorkOrder();
+        wo.setId(999L);
+        wo.setEquipmentId(100L);
+        wo.setStatus("IN_PROGRESS");
+        wo.setWorkOrderType("CALIBRATION");
+        wo.setStartedAt(LocalDateTime.now().minusHours(1));
+
+        when(workOrderRepository.findById(999L)).thenReturn(Optional.of(wo));
+        when(equipmentRepository.findById(100L)).thenReturn(Optional.of(testEquipment));
+        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        when(calibrationRecordRepository.save(any(CalibrationRecord.class))).thenAnswer(inv -> {
+            CalibrationRecord rec = inv.getArgument(0);
+            rec.setId(505L);
+            return rec;
+        });
+
+        CompleteWorkOrderRequest req = CompleteWorkOrderRequest.builder()
+                .resolutionNotes("Annual calibration complete")
+                .cost(new BigDecimal("250.00"))
+                .calibrationDate(java.time.LocalDate.now())
+                .nextDueDate(java.time.LocalDate.now().plusMonths(6))
+                .result("PASS")
+                .certificateNumber("CERT-XYZ-2026")
+                .build();
+
+        WorkOrder completed = service.completeWorkOrder(999L, req, "manager@test.com");
+
+        assertEquals("COMPLETED", completed.getStatus());
+        assertEquals(505L, completed.getCalibrationRecordId());
+        verify(calibrationRecordRepository).save(argThat(cal ->
+                "PASS".equals(cal.getResult()) &&
+                "CERT-XYZ-2026".equals(cal.getCertificateNumber()) &&
+                cal.getWorkOrderId() == 999L
+        ));
+    }
+
+    @Test
+    void getTechniciansWorkload_usesGroupedQuery_returnsWorkloadCounts() {
+        mockUser(managerUser, managerRole);
+
+        Role techRoleEntity = new Role("LAB_TECHNICIAN", "Tech");
+        techRoleEntity.setId((short) 2);
+        when(roleRepository.findByName("LAB_TECHNICIAN")).thenReturn(Optional.of(techRoleEntity));
+
+        UserRole ur = new UserRole(15L, (short) 2);
+        when(userRoleRepository.findByRoleId((short) 2)).thenReturn(List.of(ur));
+
+        techUser.setMembershipApproved(true);
+        when(userRepository.findAllById(List.of(15L))).thenReturn(List.of(techUser));
+
+        TechnicianWorkloadProjection projection = mock(TechnicianWorkloadProjection.class);
+        when(projection.getTechnicianId()).thenReturn(15L);
+        when(projection.getTotalTasks()).thenReturn(5L);
+        when(projection.getActiveTasks()).thenReturn(3L);
+        when(projection.getInProgressTasks()).thenReturn(1L);
+        when(projection.getOverdueTasks()).thenReturn(1L);
+        when(projection.getNextScheduledDate()).thenReturn(LocalDateTime.now().plusDays(2));
+
+        when(workOrderRepository.findWorkloadByTechnicianIds(eq(List.of(15L)), any())).thenReturn(List.of(projection));
+
+        List<TechnicianWorkloadDTO> workloads = service.getTechniciansWorkload(1L, "manager@test.com");
+
+        assertEquals(1, workloads.size());
+        TechnicianWorkloadDTO dto = workloads.get(0);
+        assertEquals(15L, dto.getId());
+        assertEquals(5L, dto.getTotalTasks());
+        assertEquals(3L, dto.getActiveTasks());
+        assertEquals(1L, dto.getInProgressTasks());
+        assertEquals(1L, dto.getOverdueTasks());
+        assertNotNull(dto.getNextScheduledDate());
+        verify(workOrderRepository).findWorkloadByTechnicianIds(eq(List.of(15L)), any());
+    }
+
+    @Test
+    void getTechnicianTasks_calculatesTaskGroupsAndOverdue() {
+        mockUser(techUser, techRole);
+
+        WorkOrder overdueWo = new WorkOrder();
+        overdueWo.setId(1L);
+        overdueWo.setAssignedTo(15L);
+        overdueWo.setStatus("ASSIGNED");
+        overdueWo.setScheduledDate(LocalDateTime.now().minusDays(1)); // overdue
+
+        WorkOrder todayWo = new WorkOrder();
+        todayWo.setId(2L);
+        todayWo.setAssignedTo(15L);
+        todayWo.setStatus("IN_PROGRESS");
+        todayWo.setScheduledDate(LocalDateTime.now()); // today
+
+        when(workOrderRepository.findByAssignedTo(15L)).thenReturn(List.of(overdueWo, todayWo));
+        when(workOrderRepository.findTechnicianTasks(eq(15L), any(), any(), any(), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(overdueWo, todayWo)));
+
+        TechnicianTasksResponse resp = service.getTechnicianTasks(
+                15L, null, null, null, null, org.springframework.data.domain.PageRequest.of(0, 10), "tech@test.com"
+        );
+
+        assertNotNull(resp);
+        assertEquals(2, resp.getContent().size());
+        assertEquals(1L, resp.getCounts().get("overdue"));
+        assertEquals(1L, resp.getCounts().get("inProgress"));
+        assertEquals(1L, resp.getCounts().get("assigned"));
+
+        assertTrue(resp.getTaskGroups().get("overdue").contains(overdueWo));
+        assertTrue(resp.getTaskGroups().get("today").contains(todayWo));
     }
 }

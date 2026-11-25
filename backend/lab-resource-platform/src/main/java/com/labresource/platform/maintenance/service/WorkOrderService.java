@@ -9,16 +9,24 @@ import com.labresource.platform.booking.repository.BookingAuditLogRepository;
 import com.labresource.platform.booking.repository.BookingRepository;
 import com.labresource.platform.booking.waitlist.entity.WaitlistEntry;
 import com.labresource.platform.booking.waitlist.repository.WaitlistRepository;
+import com.labresource.platform.calibration.entity.CalibrationRecord;
+import com.labresource.platform.calibration.repository.CalibrationRecordRepository;
 import com.labresource.platform.equipment.entity.Equipment;
 import com.labresource.platform.equipment.repository.EquipmentRepository;
 import com.labresource.platform.maintenance.entity.*;
+import com.labresource.platform.maintenance.model.CompleteWorkOrderRequest;
+import com.labresource.platform.maintenance.model.TechnicianTasksResponse;
+import com.labresource.platform.maintenance.model.TechnicianWorkloadDTO;
+import com.labresource.platform.maintenance.model.TechnicianWorkloadProjection;
 import com.labresource.platform.maintenance.repository.*;
+import com.labresource.platform.storage.repository.StoredDocumentRepository;
 import com.labresource.platform.user.entity.Role;
 import com.labresource.platform.user.entity.User;
 import com.labresource.platform.user.entity.UserRole;
 import com.labresource.platform.user.repository.RoleRepository;
 import com.labresource.platform.user.repository.UserRepository;
 import com.labresource.platform.user.repository.UserRoleRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
@@ -51,7 +59,29 @@ public class WorkOrderService {
     private final WaitlistRepository waitlistRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final DowntimeAnalyticsService downtimeAnalyticsService;
+    private final CalibrationRecordRepository calibrationRecordRepository;
+    private final StoredDocumentRepository storedDocumentRepository;
 
+    public WorkOrderService(
+            WorkOrderRepository workOrderRepository,
+            WorkOrderServiceLogRepository serviceLogRepository,
+            EquipmentDowntimeLogRepository downtimeLogRepository,
+            PreventiveMaintenanceScheduleRepository scheduleRepository,
+            EquipmentRepository equipmentRepository,
+            UserRepository userRepository,
+            UserRoleRepository userRoleRepository,
+            RoleRepository roleRepository,
+            BookingRepository bookingRepository,
+            BookingAuditLogRepository bookingAuditLogRepository,
+            WaitlistRepository waitlistRepository,
+            ApplicationEventPublisher eventPublisher,
+            DowntimeAnalyticsService downtimeAnalyticsService) {
+        this(workOrderRepository, serviceLogRepository, downtimeLogRepository, scheduleRepository,
+                equipmentRepository, userRepository, userRoleRepository, roleRepository, bookingRepository,
+                bookingAuditLogRepository, waitlistRepository, eventPublisher, downtimeAnalyticsService, null, null);
+    }
+
+    @Autowired
     public WorkOrderService(
             WorkOrderRepository workOrderRepository,
             WorkOrderServiceLogRepository serviceLogRepository,
@@ -65,7 +95,9 @@ public class WorkOrderService {
             @Lazy BookingAuditLogRepository bookingAuditLogRepository,
             @Lazy WaitlistRepository waitlistRepository,
             ApplicationEventPublisher eventPublisher,
-            @Lazy DowntimeAnalyticsService downtimeAnalyticsService) {
+            @Lazy DowntimeAnalyticsService downtimeAnalyticsService,
+            @Lazy CalibrationRecordRepository calibrationRecordRepository,
+            @Lazy StoredDocumentRepository storedDocumentRepository) {
         this.workOrderRepository = workOrderRepository;
         this.serviceLogRepository = serviceLogRepository;
         this.downtimeLogRepository = downtimeLogRepository;
@@ -79,6 +111,8 @@ public class WorkOrderService {
         this.waitlistRepository = waitlistRepository;
         this.eventPublisher = eventPublisher;
         this.downtimeAnalyticsService = downtimeAnalyticsService;
+        this.calibrationRecordRepository = calibrationRecordRepository;
+        this.storedDocumentRepository = storedDocumentRepository;
     }
 
     private User getActor(String email) {
@@ -546,6 +580,15 @@ public class WorkOrderService {
 
     @Transactional
     public WorkOrder completeWorkOrder(Long workOrderId, String resolutionNotes, BigDecimal cost, String userEmail) {
+        CompleteWorkOrderRequest request = CompleteWorkOrderRequest.builder()
+                .resolutionNotes(resolutionNotes)
+                .cost(cost)
+                .build();
+        return completeWorkOrder(workOrderId, request, userEmail);
+    }
+
+    @Transactional
+    public WorkOrder completeWorkOrder(Long workOrderId, CompleteWorkOrderRequest request, String userEmail) {
         User user = getActor(userEmail);
         Set<String> roles = getUserRoles(user.getId());
         checkNotSystemAdmin(roles);
@@ -564,14 +607,17 @@ public class WorkOrderService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only IN_PROGRESS work orders can be completed.");
         }
 
-        if (resolutionNotes == null || resolutionNotes.trim().isBlank()) {
+        String resolutionNotes = request != null && request.getResolutionNotes() != null ? request.getResolutionNotes().trim() : null;
+        if (resolutionNotes == null || resolutionNotes.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Resolution notes are required.");
         }
 
         LocalDateTime completedAt = LocalDateTime.now();
         wo.setStatus("COMPLETED");
         wo.setCompletedAt(completedAt);
-        wo.setResolutionNotes(resolutionNotes.trim());
+        wo.setResolutionNotes(resolutionNotes);
+
+        BigDecimal cost = request != null ? request.getCost() : null;
         if (cost != null && cost.signum() >= 0) {
             wo.setCost(cost);
         }
@@ -583,6 +629,78 @@ public class WorkOrderService {
             wo.setDowntimeHours(Math.round((downtimeMinutes / 60.0) * 10.0) / 10.0);
         }
         wo.setUpdatedAt(completedAt);
+
+        // Process calibration record within same transaction if calibration details provided or work order is CALIBRATION
+        boolean hasCalDetails = request != null && (
+                request.getCalibrationDate() != null
+                || request.getResult() != null
+                || request.getNextDueDate() != null
+                || "CALIBRATION".equalsIgnoreCase(wo.getWorkOrderType())
+        );
+
+        if (hasCalDetails) {
+            LocalDate calDate = (request != null && request.getCalibrationDate() != null)
+                    ? request.getCalibrationDate()
+                    : LocalDate.now();
+            LocalDate nextDue = request != null ? request.getNextDueDate() : null;
+            if (nextDue == null) {
+                nextDue = calDate.plusMonths(6);
+            }
+            if (!nextDue.isAfter(calDate)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Next due date must be after the calibration date.");
+            }
+
+            String calResult = (request != null && request.getResult() != null && !request.getResult().isBlank())
+                    ? request.getResult().trim().toUpperCase(Locale.ROOT)
+                    : "PASS";
+            if (!List.of("PASS", "FAIL", "CONDITIONAL").contains(calResult)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Calibration result must be PASS, FAIL, or CONDITIONAL.");
+            }
+
+            Equipment eq = equipmentRepository.findById(wo.getEquipmentId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Equipment not found"));
+
+            CalibrationRecord cal = new CalibrationRecord();
+            cal.setEquipment(eq);
+            cal.setCalibrationDate(calDate);
+            cal.setNextDueDate(nextDue);
+            cal.setResult(calResult);
+            cal.setStatus("COMPLETED");
+            cal.setNotes(request != null && request.getCalibrationNotes() != null && !request.getCalibrationNotes().isBlank()
+                    ? request.getCalibrationNotes().trim()
+                    : resolutionNotes);
+            cal.setAssignedTo(wo.getAssignedTo());
+            cal.setWorkOrderId(wo.getId());
+            cal.setCreatedAt(completedAt);
+
+            if (request != null && request.getCertificateNumber() != null && !request.getCertificateNumber().isBlank()) {
+                cal.setCertificateNumber(request.getCertificateNumber().trim());
+            }
+
+            if (request != null && request.getDocumentId() != null) {
+                cal.setCertificateDocumentId(request.getDocumentId());
+                storedDocumentRepository.findById(request.getDocumentId()).ifPresent(doc -> {
+                    doc.setEntityType("CALIBRATION_CERTIFICATE");
+                    doc.setEntityId(cal.getId());
+                    cal.setCertificateReference(doc.getFileReference());
+                    storedDocumentRepository.save(doc);
+                });
+            }
+
+            CalibrationRecord savedCal = calibrationRecordRepository.save(cal);
+            wo.setCalibrationRecordId(savedCal.getId());
+        }
+
+        if (request != null && request.getReportDocumentId() != null) {
+            wo.setReportDocumentId(request.getReportDocumentId());
+            storedDocumentRepository.findById(request.getReportDocumentId()).ifPresent(doc -> {
+                doc.setEntityType("MAINTENANCE_REPORT");
+                doc.setEntityId(wo.getId());
+                wo.setReportReference(doc.getFileReference());
+                storedDocumentRepository.save(doc);
+            });
+        }
+
         WorkOrder saved = workOrderRepository.save(wo);
 
         // Close downtime log & compute operating hours downtime
@@ -617,7 +735,7 @@ public class WorkOrderService {
         }
 
         recordServiceLog(saved.getId(), user.getId(), "STATUS_CHANGE", "IN_PROGRESS", "COMPLETED",
-                "Work order completed. Resolution: " + resolutionNotes.trim() + (cost != null ? " | Cost: ₹" + cost : ""));
+                "Work order completed. Resolution: " + resolutionNotes + (cost != null ? " | Cost: ₹" + cost : ""));
 
         enrichWorkOrder(saved);
         return saved;
@@ -816,6 +934,119 @@ public class WorkOrderService {
         return page;
     }
 
+    public List<TechnicianWorkloadDTO> getTechniciansWorkload(Long institutionId, String userEmail) {
+        User actor = getActor(userEmail);
+        Set<String> roles = getUserRoles(actor.getId());
+        checkNotSystemAdmin(roles);
+
+        Long effectiveInstitutionId = institutionId != null ? institutionId : actor.getInstitutionId();
+        Role techRole = roleRepository.findByName("LAB_TECHNICIAN").orElse(null);
+        if (techRole == null) return List.of();
+
+        List<Long> techUserIds = userRoleRepository.findByRoleId(techRole.getId()).stream()
+                .map(UserRole::getUserId)
+                .toList();
+
+        if (techUserIds.isEmpty()) return List.of();
+
+        List<User> technicians = userRepository.findAllById(techUserIds).stream()
+                .filter(u -> effectiveInstitutionId == null || Objects.equals(u.getInstitutionId(), effectiveInstitutionId))
+                .filter(u -> Boolean.TRUE.equals(u.getMembershipApproved()) || "APPROVED".equalsIgnoreCase(u.getMembershipStatus()))
+                .toList();
+
+        if (technicians.isEmpty()) return List.of();
+
+        List<Long> approvedTechIds = technicians.stream().map(User::getId).toList();
+        LocalDateTime now = LocalDateTime.now();
+        List<TechnicianWorkloadProjection> workloadProjections = workOrderRepository.findWorkloadByTechnicianIds(approvedTechIds, now);
+
+        Map<Long, TechnicianWorkloadProjection> projectionMap = workloadProjections.stream()
+                .collect(Collectors.toMap(TechnicianWorkloadProjection::getTechnicianId, p -> p, (a, b) -> a));
+
+        return technicians.stream().map(tech -> {
+            TechnicianWorkloadProjection p = projectionMap.get(tech.getId());
+            return TechnicianWorkloadDTO.builder()
+                    .id(tech.getId())
+                    .fullName(tech.getFullName() != null && !tech.getFullName().isBlank() ? tech.getFullName() : tech.getEmail())
+                    .email(tech.getEmail())
+                    .institutionId(tech.getInstitutionId())
+                    .departmentId(tech.getDepartmentId())
+                    .totalTasks(p != null && p.getTotalTasks() != null ? p.getTotalTasks() : 0L)
+                    .activeTasks(p != null && p.getActiveTasks() != null ? p.getActiveTasks() : 0L)
+                    .inProgressTasks(p != null && p.getInProgressTasks() != null ? p.getInProgressTasks() : 0L)
+                    .overdueTasks(p != null && p.getOverdueTasks() != null ? p.getOverdueTasks() : 0L)
+                    .nextScheduledDate(p != null ? p.getNextScheduledDate() : null)
+                    .build();
+        }).toList();
+    }
+
+    public TechnicianTasksResponse getTechnicianTasks(
+            Long technicianId, String status, String priority, String workOrderType, String taskGroup, Pageable pageable, String userEmail) {
+        User actor = getActor(userEmail);
+        Set<String> roles = getUserRoles(actor.getId());
+        checkNotSystemAdmin(roles);
+
+        Long effectiveTechId = technicianId;
+        if (effectiveTechId == null) {
+            if (roles.contains("LAB_TECHNICIAN")) {
+                effectiveTechId = actor.getId();
+            } else {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Technician ID is required for non-technician users.");
+            }
+        }
+
+        // Only manager/admin or the technician themselves can view their tasks
+        boolean isSelf = Objects.equals(actor.getId(), effectiveTechId);
+        boolean isManager = roles.contains("LAB_MANAGER") || roles.contains("INSTITUTION_ADMIN");
+        if (!isSelf && !isManager) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to technician tasks.");
+        }
+
+        Page<WorkOrder> page = workOrderRepository.findTechnicianTasks(effectiveTechId, status, workOrderType, priority, pageable);
+        page.getContent().forEach(this::enrichWorkOrder);
+
+        // Fetch all assigned work orders for counts and task groups
+        List<WorkOrder> allAssigned = workOrderRepository.findByAssignedTo(effectiveTechId);
+        allAssigned.forEach(this::enrichWorkOrder);
+
+        Map<String, Long> counts = new HashMap<>();
+        counts.put("total", (long) allAssigned.size());
+        counts.put("open", allAssigned.stream().filter(w -> "OPEN".equalsIgnoreCase(w.getStatus())).count());
+        counts.put("assigned", allAssigned.stream().filter(w -> "ASSIGNED".equalsIgnoreCase(w.getStatus())).count());
+        counts.put("inProgress", allAssigned.stream().filter(w -> "IN_PROGRESS".equalsIgnoreCase(w.getStatus())).count());
+        counts.put("completed", allAssigned.stream().filter(w -> "COMPLETED".equalsIgnoreCase(w.getStatus())).count());
+        counts.put("cancelled", allAssigned.stream().filter(w -> "CANCELLED".equalsIgnoreCase(w.getStatus())).count());
+        counts.put("overdue", allAssigned.stream().filter(w -> Boolean.TRUE.equals(w.getIsOverdue())).count());
+
+        Map<String, List<WorkOrder>> taskGroups = new HashMap<>();
+        taskGroups.put("overdue", allAssigned.stream().filter(w -> "OVERDUE".equals(w.getTaskGroup())).toList());
+        taskGroups.put("today", allAssigned.stream().filter(w -> "TODAY".equals(w.getTaskGroup())).toList());
+        taskGroups.put("thisWeek", allAssigned.stream().filter(w -> "THIS_WEEK".equals(w.getTaskGroup())).toList());
+        taskGroups.put("later", allAssigned.stream().filter(w -> "LATER".equals(w.getTaskGroup())).toList());
+
+        List<WorkOrder> content = page.getContent();
+        if (taskGroup != null && !taskGroup.isBlank()) {
+            String groupKey = taskGroup.trim().toLowerCase(Locale.ROOT);
+            content = switch (groupKey) {
+                case "overdue" -> taskGroups.getOrDefault("overdue", List.of());
+                case "today" -> taskGroups.getOrDefault("today", List.of());
+                case "this_week", "thisweek" -> taskGroups.getOrDefault("thisWeek", List.of());
+                case "later" -> taskGroups.getOrDefault("later", List.of());
+                default -> content;
+            };
+        }
+
+        return TechnicianTasksResponse.builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .counts(counts)
+                .taskGroups(taskGroups)
+                .build();
+    }
+
     public void enrichWorkOrder(WorkOrder wo) {
         if (wo == null) return;
         if (wo.getEquipmentId() != null) {
@@ -835,6 +1066,27 @@ public class WorkOrderService {
             userRepository.findById(wo.getCreatedBy()).ifPresent(u -> {
                 wo.setCreatorName(u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getEmail());
             });
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalDate schedDate = wo.getScheduledDate() != null ? wo.getScheduledDate().toLocalDate() : null;
+        boolean overdue = schedDate != null
+                && schedDate.isBefore(today)
+                && !List.of("COMPLETED", "CANCELLED").contains(wo.getStatus());
+        wo.setIsOverdue(overdue);
+
+        if (schedDate != null) {
+            if (overdue) {
+                wo.setTaskGroup("OVERDUE");
+            } else if (schedDate.isEqual(today)) {
+                wo.setTaskGroup("TODAY");
+            } else if (schedDate.isAfter(today) && !schedDate.isAfter(today.plusDays(7))) {
+                wo.setTaskGroup("THIS_WEEK");
+            } else {
+                wo.setTaskGroup("LATER");
+            }
+        } else {
+            wo.setTaskGroup("LATER");
         }
     }
 }

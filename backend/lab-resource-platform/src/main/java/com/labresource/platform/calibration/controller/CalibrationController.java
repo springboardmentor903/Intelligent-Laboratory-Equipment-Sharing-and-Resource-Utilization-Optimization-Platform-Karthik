@@ -1,8 +1,13 @@
 package com.labresource.platform.calibration.controller;
 
 import com.labresource.platform.calibration.entity.CalibrationRecord;
+import com.labresource.platform.calibration.model.CalibrationOverviewItem;
+import com.labresource.platform.calibration.model.CalibrationReminderItem;
 import com.labresource.platform.calibration.service.CalibrationRecordService;
 import com.labresource.platform.common.security.ResourceAccessPolicy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +31,31 @@ public class CalibrationController {
                                  ResourceAccessPolicy resourceAccess) {
         this.calibrationRecordService = calibrationRecordService;
         this.resourceAccess = resourceAccess;
+    }
+
+    @GetMapping("/overview")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    public ResponseEntity<Page<CalibrationOverviewItem>> getCalibrationOverview(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+        Long institutionId = resourceAccess.scopedInstitutionId(null, authentication);
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size));
+        Page<CalibrationOverviewItem> overview = calibrationRecordService.getCalibrationOverview(
+                institutionId, departmentId, state, keyword, pageable
+        );
+        return ResponseEntity.ok(overview);
+    }
+
+    @GetMapping("/reminders")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'RESEARCHER_STUDENT', 'LAB_TECHNICIAN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    public ResponseEntity<List<CalibrationReminderItem>> getCalibrationReminders(Authentication authentication) {
+        Long institutionId = resourceAccess.scopedInstitutionId(null, authentication);
+        List<CalibrationReminderItem> reminders = calibrationRecordService.getCalibrationReminders(institutionId);
+        return ResponseEntity.ok(reminders);
     }
 
     @GetMapping

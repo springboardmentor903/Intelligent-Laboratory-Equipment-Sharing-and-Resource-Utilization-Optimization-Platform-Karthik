@@ -354,3 +354,64 @@ export function validateMaintenanceDateRange(start, end) {
   }
   return ''
 }
+
+export function validateDocumentUpload(file, maxSizeMB = 10) {
+  if (!file) return 'Select a file to upload.'
+  const maxSizeBytes = maxSizeMB * 1024 * 1024
+  if (file.size > maxSizeBytes) {
+    return `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds maximum limit of ${maxSizeMB} MB.`
+  }
+
+  const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']
+  const name = String(file.name || '').toLowerCase()
+  const allowedExts = ['.pdf', '.png', '.jpg', '.jpeg']
+
+  const hasAllowedExt = allowedExts.some((ext) => name.endsWith(ext))
+  const hasAllowedType = allowedTypes.includes(file.type?.toLowerCase())
+
+  if (!hasAllowedExt && !hasAllowedType) {
+    return 'Allowed file types are PDF, PNG, and JPEG (.pdf, .png, .jpg, .jpeg).'
+  }
+
+  return ''
+}
+
+export function getCalibrationStateBadge(state) {
+  const norm = String(state || 'NONE').toUpperCase()
+  switch (norm) {
+    case 'VALID':
+      return { label: 'Valid', tone: 'success' }
+    case 'DUE_SOON':
+      return { label: 'Due Soon', tone: 'warning' }
+    case 'EXPIRED':
+      return { label: 'Expired', tone: 'danger' }
+    case 'NONE':
+    default:
+      return { label: 'No Record', tone: 'neutral' }
+  }
+}
+
+export function getTechnicianTaskGroupBadge(taskGroup) {
+  const norm = String(taskGroup || 'LATER').toUpperCase()
+  switch (norm) {
+    case 'OVERDUE':
+      return { label: 'Overdue', tone: 'danger' }
+    case 'TODAY':
+      return { label: 'Today', tone: 'info' }
+    case 'THIS_WEEK':
+      return { label: 'This Week', tone: 'primary' }
+    case 'LATER':
+    default:
+      return { label: 'Later', tone: 'neutral' }
+  }
+}
+
+export function canViewTechnicianWorkload(roles) {
+  return hasValidRoles(roles) && !isSystemAdminForbidden(roles)
+    && (roles.includes('LAB_MANAGER') || roles.includes('INSTITUTION_ADMIN'))
+}
+
+export function canAccessMyTasks(roles) {
+  return hasValidRoles(roles) && !isSystemAdminForbidden(roles)
+    && (roles.includes('LAB_TECHNICIAN') || roles.includes('LAB_MANAGER') || roles.includes('INSTITUTION_ADMIN'))
+}

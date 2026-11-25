@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../api/axiosInstance'
 import { useAuth } from '../context/AuthContext'
+import DocumentUploadModal from '../components/DocumentUploadModal'
 import {
   WORK_ORDER_STATUSES,
   WORK_ORDER_TYPES,
@@ -99,6 +101,12 @@ export default function Maintenance() {
   const [completeModalWo, setCompleteModalWo] = useState(null)
   const [completeNotes, setCompleteNotes] = useState('')
   const [completeCost, setCompleteCost] = useState('')
+  const [completeCalDate, setCompleteCalDate] = useState('')
+  const [completeCalResult, setCompleteCalResult] = useState('PASS')
+  const [completeCalNextDue, setCompleteCalNextDue] = useState('')
+  const [completeCalCertNumber, setCompleteCalCertNumber] = useState('')
+  const [completeDocModalOpen, setCompleteDocModalOpen] = useState(false)
+  const [completeUploadedDoc, setCompleteUploadedDoc] = useState(null)
 
   const [cancelModalWo, setCancelModalWo] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -171,6 +179,15 @@ export default function Maintenance() {
   }
 
   async function loadTechnicians() {
+    try {
+      const res = await api.get('/api/technicians')
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setTechnicians(res.data)
+        return
+      }
+    } catch {
+      // fallback to /api/users
+    }
     try {
       const res = await api.get('/api/users')
       if (Array.isArray(res.data)) {
@@ -374,12 +391,28 @@ export default function Maintenance() {
     e.preventDefault()
     if (!completeModalWo || !completeNotes.trim()) return
     try {
-      await api.post(`/api/maintenance/work-orders/${completeModalWo.id}/complete`, {
+      const payload = {
         resolutionNotes: completeNotes.trim(),
         cost: completeCost ? Number(completeCost) : null,
-      })
+      }
+      if (completeUploadedDoc) {
+        payload.reportDocumentId = completeUploadedDoc.id
+        payload.reportReference = completeUploadedDoc.fileName
+      }
+      if (completeModalWo.type === 'CALIBRATION') {
+        payload.calibrationDate = completeCalDate || new Date().toISOString().split('T')[0]
+        payload.calibrationResult = completeCalResult || 'PASS'
+        if (completeCalNextDue) payload.nextDueDate = completeCalNextDue
+        if (completeCalCertNumber) payload.certificateNumber = completeCalCertNumber
+        if (completeUploadedDoc) {
+          payload.certificateDocumentId = completeUploadedDoc.id
+          payload.certificateReference = completeUploadedDoc.fileName
+        }
+      }
+      await api.post(`/api/maintenance/work-orders/${completeModalWo.id}/complete`, payload)
       setNotice(`Work order ${completeModalWo.workOrderNumber} completed. Equipment restored to Available.`)
       setCompleteModalWo(null)
+      setCompleteUploadedDoc(null)
       loadWorkOrders()
       if (selectedWorkOrder?.id === completeModalWo.id) {
         loadWorkOrderDetail(completeModalWo.id)
@@ -599,7 +632,7 @@ export default function Maintenance() {
       {error && <div className="module-alert" role="alert"><span>{error}</span><button type="button" onClick={() => setError('')}>Dismiss</button></div>}
 
       {/* Tabs Navigation */}
-      <div className="analytics-tabs-bar" style={{ display: 'flex', gap: '8px', borderBottom: '2px solid var(--border)', marginBottom: '20px' }}>
+      <div className="analytics-tabs-bar" style={{ display: 'flex', gap: '8px', borderBottom: '2px solid var(--border)', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
         {isStaff && (
           <button
             type="button"
@@ -636,6 +669,66 @@ export default function Maintenance() {
             ⏱️ Preventive Schedules
           </button>
         )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', paddingBottom: '4px', flexWrap: 'wrap' }}>
+          <Link
+            to="/calibration"
+            style={{
+              padding: '6px 12px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              borderRadius: '6px',
+              textDecoration: 'none',
+              background: 'var(--surface-muted, #f1f5f9)',
+              color: 'var(--primary)',
+              border: '1px solid var(--border)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            🎯 Calibration Tracking
+          </Link>
+          {(isTechnician || isStaff) && (
+            <Link
+              to="/my-tasks"
+              style={{
+                padding: '6px 12px',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                borderRadius: '6px',
+                textDecoration: 'none',
+                background: 'var(--surface-muted, #f1f5f9)',
+                color: 'var(--primary)',
+                border: '1px solid var(--border)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              📋 My Tasks
+            </Link>
+          )}
+          {isStaff && (
+            <Link
+              to="/technicians"
+              style={{
+                padding: '6px 12px',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                borderRadius: '6px',
+                textDecoration: 'none',
+                background: 'var(--surface-muted, #f1f5f9)',
+                color: 'var(--primary)',
+                border: '1px solid var(--border)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              👷 Technicians Workload
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* ============================================================= */}
@@ -983,6 +1076,34 @@ export default function Maintenance() {
                   </div>
                 )}
 
+                {selectedWorkOrder.reportReference && (
+                  <div style={{ marginBottom: '16px', background: 'var(--surface-muted, #f8fafc)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: '13px' }}>📎 Attached Document / Report</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '13.5px' }}>{selectedWorkOrder.reportReference}</span>
+                      {selectedWorkOrder.reportDocumentId && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          style={{ fontSize: '12px', padding: '3px 8px' }}
+                          onClick={async () => {
+                            try {
+                              const res = await api.get(`/api/documents/${selectedWorkOrder.reportDocumentId}/access-url`)
+                              if (res.data?.accessUrl) {
+                                window.open(res.data.accessUrl, '_blank')
+                              }
+                            } catch {
+                              setError('Failed to generate document access URL.')
+                            }
+                          }}
+                        >
+                          View Document (10m Link)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Workflow Action Buttons */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: '16px', marginBottom: '20px' }}>
                   {isLabManager && ['OPEN', 'ASSIGNED'].includes(selectedWorkOrder.status) && (
@@ -1036,6 +1157,11 @@ export default function Maintenance() {
                             setCompleteModalWo(selectedWorkOrder)
                             setCompleteNotes('')
                             setCompleteCost('')
+                            setCompleteCalDate(new Date().toISOString().split('T')[0])
+                            setCompleteCalResult('PASS')
+                            setCompleteCalNextDue('')
+                            setCompleteCalCertNumber('')
+                            setCompleteUploadedDoc(null)
                           }}
                         >
                           ✓ Complete Work Order
@@ -1499,7 +1625,11 @@ export default function Maintenance() {
                   onChange={(e) => setCreateWoForm({ ...createWoForm, assignedTo: e.target.value })}
                 >
                   <option value="">Leave Unassigned (Open)</option>
-                  {technicians.map((t) => <option key={t.id} value={t.id}>{t.fullName || t.email}</option>)}
+                  {technicians.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.fullName || t.email} ({t.activeTasks ?? 0} active, {t.overdueTasks ?? 0} overdue)
+                    </option>
+                  ))}
                 </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
@@ -1514,7 +1644,7 @@ export default function Maintenance() {
       {/* Assign Technician Modal */}
       {assignModalWo && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '420px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 12px', fontSize: '1.15rem', fontWeight: 700 }}>Assign Technician</h3>
             <p style={{ margin: '0 0 14px', fontSize: '13px', color: 'var(--text-muted)' }}>Work Order: {assignModalWo.workOrderNumber}</p>
             <form onSubmit={handleAssignTechnician} className="booking-form">
@@ -1526,9 +1656,36 @@ export default function Maintenance() {
                   onChange={(e) => setAssignTechId(e.target.value)}
                 >
                   <option value="">Select Technician</option>
-                  {technicians.map((t) => <option key={t.id} value={t.id}>{t.fullName || t.email}</option>)}
+                  {technicians.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.fullName || t.email} ({t.activeTasks ?? 0} active, {t.overdueTasks ?? 0} overdue)
+                    </option>
+                  ))}
                 </select>
               </div>
+
+              {assignTechId && (() => {
+                const selectedTech = technicians.find((t) => String(t.id) === String(assignTechId))
+                if (!selectedTech) return null
+                return (
+                  <div style={{ marginTop: '10px', padding: '10px 12px', background: 'var(--surface-muted, #f8fafc)', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12.5px' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '6px' }}>Technician Current Workload:</div>
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                      <span><strong>Active:</strong> {selectedTech.activeTasks ?? 0}</span>
+                      <span><strong>In Progress:</strong> {selectedTech.inProgressTasks ?? 0}</span>
+                      <span style={{ color: (selectedTech.overdueTasks || 0) > 0 ? '#ef4444' : 'inherit' }}>
+                        <strong>Overdue:</strong> {selectedTech.overdueTasks ?? 0}
+                      </span>
+                    </div>
+                    {selectedTech.nextScheduledDate && (
+                      <div style={{ marginTop: '4px', color: 'var(--text-muted)' }}>
+                        Next Scheduled: {formatDate(selectedTech.nextScheduledDate)}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
                 <button type="button" className="secondary-button" onClick={() => setAssignModalWo(null)}>Cancel</button>
                 <button type="submit" className="button button-primary">Confirm Assignment</button>
@@ -1638,10 +1795,13 @@ export default function Maintenance() {
       {/* Complete Work Order Modal */}
       {completeModalWo && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '460px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: '1.15rem', fontWeight: 700 }}>Complete Work Order</h3>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '520px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: '1.15rem', fontWeight: 700 }}>
+              {completeModalWo.type === 'CALIBRATION' ? 'Complete Calibration Work Order' : 'Complete Work Order'}
+            </h3>
             <p style={{ margin: '0 0 14px', fontSize: '13px', color: 'var(--text-muted)' }}>
               Completing this order calculates downtime and restores <strong>{completeModalWo.equipmentName}</strong> to Available status.
+              {completeModalWo.type === 'CALIBRATION' && ' Calibration log will be recorded automatically.'}
             </p>
             <form onSubmit={handleCompleteWorkOrder} className="booking-form">
               <div className="form-field">
@@ -1665,7 +1825,83 @@ export default function Maintenance() {
                   onChange={(e) => setCompleteCost(e.target.value)}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+
+              {completeModalWo.type === 'CALIBRATION' && (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px', marginTop: '12px' }}>
+                  <h4 style={{ margin: '0 0 10px', fontSize: '13.5px', color: 'var(--primary)' }}>Calibration Record Details</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className="form-field">
+                      <label>Calibration Date *</label>
+                      <input
+                        type="date"
+                        required
+                        value={completeCalDate}
+                        onChange={(e) => setCompleteCalDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>Result *</label>
+                      <select
+                        value={completeCalResult}
+                        onChange={(e) => setCompleteCalResult(e.target.value)}
+                      >
+                        <option value="PASS">PASS</option>
+                        <option value="CONDITIONAL">CONDITIONAL</option>
+                        <option value="FAIL">FAIL</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '8px' }}>
+                    <div className="form-field">
+                      <label>Next Due Date</label>
+                      <input
+                        type="date"
+                        value={completeCalNextDue}
+                        onChange={(e) => setCompleteCalNextDue(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>Certificate #</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. CAL-2026-091"
+                        value={completeCalCertNumber}
+                        onChange={(e) => setCompleteCalCertNumber(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Document Attachment Section */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px', marginTop: '12px' }}>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, marginBottom: '6px' }}>
+                  {completeModalWo.type === 'CALIBRATION' ? 'Calibration Certificate (Optional)' : 'Service Report Document (Optional)'}
+                </label>
+                {completeUploadedDoc ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--surface-muted, #f1f5f9)', borderRadius: '6px', fontSize: '13px' }}>
+                    <span>📎 {completeUploadedDoc.fileName}</span>
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                      onClick={() => setCompleteUploadedDoc(null)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    style={{ fontSize: '12.5px', padding: '5px 12px' }}
+                    onClick={() => setCompleteDocModalOpen(true)}
+                  >
+                    📎 Upload Document / Certificate
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '18px' }}>
                 <button type="button" className="secondary-button" onClick={() => setCompleteModalWo(null)}>Cancel</button>
                 <button type="submit" className="button button-primary" style={{ background: '#10b981', borderColor: '#059669' }}>
                   Confirm & Mark Completed
@@ -1674,6 +1910,21 @@ export default function Maintenance() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Document Upload Modal for Complete Dialog */}
+      {completeDocModalOpen && completeModalWo && (
+        <DocumentUploadModal
+          isOpen={completeDocModalOpen}
+          onClose={() => setCompleteDocModalOpen(false)}
+          entityType={completeModalWo.type === 'CALIBRATION' ? 'CALIBRATION_RECORD' : 'WORK_ORDER'}
+          entityId={completeModalWo.id}
+          title={completeModalWo.type === 'CALIBRATION' ? 'Upload Calibration Certificate' : 'Upload Service Report'}
+          onUploadSuccess={(doc) => {
+            setCompleteUploadedDoc(doc)
+            setCompleteDocModalOpen(false)
+          }}
+        />
       )}
 
       {/* Cancel Work Order Modal */}
