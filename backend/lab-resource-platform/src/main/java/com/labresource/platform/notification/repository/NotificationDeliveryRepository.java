@@ -16,5 +16,7 @@ public interface NotificationDeliveryRepository extends JpaRepository<Notificati
 
     List<NotificationDelivery> findByStatusAndAttemptsLessThan(DeliveryStatus status, int maxAttempts);
 
+    long countByStatusAndCreatedAtAfter(DeliveryStatus status, java.time.Instant after);
+
     boolean existsByNotificationIdAndChannel(Long notificationId, DeliveryChannel channel);
 }

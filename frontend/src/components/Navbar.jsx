@@ -16,6 +16,7 @@ import {
   canViewBudgets,
   canManageInvoices,
 } from '../access/billingWorkflow.js'
+import { canViewReports } from '../access/reportWorkflow.js'
 
 function SunIcon() {
   return (
@@ -77,6 +78,7 @@ const ROUTE_ICONS = {
   '/charges': '🧾',
   '/budgets': '💰',
   '/invoices': '📑',
+  '/reports': '📑',
   '/login': '🔑',
   '/register': '📝',
   '/register-institution': '🏛️',
@@ -428,6 +430,15 @@ export default function Navbar() {
                       {ROUTE_ICONS['/invoices']}
                     </span>
                     <span className="sidebar-link-text">Invoices</span>
+                  </NavLink>
+                )}
+
+                {canViewReports(user?.roles) && (
+                  <NavLink to="/reports" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/reports'] || '📑'}
+                    </span>
+                    <span className="sidebar-link-text">Reports</span>
                   </NavLink>
                 )}
               </>

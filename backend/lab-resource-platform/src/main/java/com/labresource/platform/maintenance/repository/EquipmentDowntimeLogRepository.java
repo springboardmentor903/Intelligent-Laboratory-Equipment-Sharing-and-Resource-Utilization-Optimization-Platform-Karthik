@@ -17,6 +17,8 @@ public interface EquipmentDowntimeLogRepository extends JpaRepository<EquipmentD
 
     List<EquipmentDowntimeLog> findByEquipmentIdOrderByStartTimeDesc(Long equipmentId);
 
+    List<EquipmentDowntimeLog> findByEquipmentIdIn(List<Long> equipmentIds);
+
     @Query("""
             SELECT d FROM EquipmentDowntimeLog d
             WHERE d.equipmentId IN :equipmentIds

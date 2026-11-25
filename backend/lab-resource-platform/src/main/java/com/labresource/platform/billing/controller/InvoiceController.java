@@ -6,13 +6,16 @@ import com.labresource.platform.billing.model.InvoiceDetailDTO;
 import com.labresource.platform.billing.model.InvoiceStatus;
 import com.labresource.platform.billing.service.InvoiceService;
 import com.labresource.platform.common.security.ResourceAccessPolicy;
+import com.labresource.platform.report.service.PdfExportService;
 import com.labresource.platform.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -27,10 +30,12 @@ public class InvoiceController {
 
     private final InvoiceService invoiceService;
     private final ResourceAccessPolicy resourceAccess;
+    private final PdfExportService pdfExportService;
 
-    public InvoiceController(InvoiceService invoiceService, ResourceAccessPolicy resourceAccess) {
+    public InvoiceController(InvoiceService invoiceService, ResourceAccessPolicy resourceAccess, PdfExportService pdfExportService) {
         this.invoiceService = invoiceService;
         this.resourceAccess = resourceAccess;
+        this.pdfExportService = pdfExportService;
     }
 
     @PostMapping("/generate")
@@ -96,6 +101,31 @@ public class InvoiceController {
         Long actorInstId = user != null ? user.getInstitutionId() : null;
         Long actorDeptId = user != null ? user.getDepartmentId() : null;
         return ResponseEntity.ok(invoiceService.getInvoiceDetail(id, actorInstId, actorDeptId));
+    }
+
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'INSTITUTION_ADMIN', 'LAB_MANAGER', 'DEPARTMENT_HEAD', 'SYSTEM_ADMIN')")
+    public ResponseEntity<byte[]> getInvoicePdf(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        User user = resourceAccess.currentUser(authentication).orElse(null);
+        Long actorInstId = (user != null && !resourceAccess.isSystemAdmin(authentication)) ? user.getInstitutionId() : null;
+        Long actorDeptId = (user != null && resourceAccess.hasAnyRole(authentication, "DEPARTMENT_HEAD") && !resourceAccess.hasAnyRole(authentication, "INSTITUTION_ADMIN", "SYSTEM_ADMIN"))
+                ? user.getDepartmentId()
+                : null;
+
+        InvoiceDetailDTO invoiceDetail = invoiceService.getInvoiceDetail(id, actorInstId, actorDeptId);
+        byte[] pdfBytes = pdfExportService.generateInvoicePdf(invoiceDetail);
+
+        String invNum = (invoiceDetail.getInvoice() != null && invoiceDetail.getInvoice().getInvoiceNumber() != null)
+                ? invoiceDetail.getInvoice().getInvoiceNumber()
+                : String.valueOf(id);
+        String filename = "invoice_" + invNum + ".pdf";
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .body(pdfBytes);
     }
 
     @PostMapping("/{id}/issue")

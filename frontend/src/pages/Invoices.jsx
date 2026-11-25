@@ -8,6 +8,7 @@ import {
   getInvoiceStatusBadge,
   validateInvoiceGeneration,
 } from '../access/billingWorkflow.js'
+import { downloadInvoicePdf } from '../access/reportWorkflow.js'
 
 export default function Invoices() {
   const { user } = useAuth()
@@ -672,7 +673,16 @@ export default function Invoices() {
                   </div>
 
                   {/* Actions based on state */}
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => downloadInvoicePdf(api, invoiceDetail.invoice.id, invoiceDetail.invoice.invoiceNumber)}
+                      style={{ padding: '6px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      📄 Download PDF
+                    </button>
+
                     {invoiceDetail.invoice.status === 'DRAFT' && (
                       <>
                         <button

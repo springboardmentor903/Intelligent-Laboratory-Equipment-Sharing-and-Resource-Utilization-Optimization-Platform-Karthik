@@ -235,6 +235,25 @@ public class UserController {
         }
     }
 
+    @PatchMapping("/{userId}/deactivate")
+    @PreAuthorize("isAuthenticated() and @resourceAccess.hasAnyRole(authentication, 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN')")
+    public ResponseEntity<?> deactivateUser(
+            @PathVariable Long userId,
+            Authentication authentication) {
+        try {
+            User deactivated = userService.deactivateUser(userId, authentication.getName());
+            return ResponseEntity.ok(Map.of(
+                    "id", deactivated.getId(),
+                    "email", deactivated.getEmail(),
+                    "membershipStatus", "DEACTIVATED",
+                    "membershipApproved", false,
+                    "message", "User deactivated successfully."
+            ));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @GetMapping("/pending-system-admins")
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<List<PendingMembershipResponse>> getPendingSystemAdmins() {

@@ -22,6 +22,8 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     @Query("SELECT MAX(w.workOrderNumber) FROM WorkOrder w WHERE w.workOrderNumber LIKE CONCAT(:prefix, '%')")
     Optional<String> findMaxWorkOrderNumber(@Param("prefix") String prefix);
 
+    long countByEquipmentId(Long equipmentId);
+
     long countByEquipmentIdAndStatusAndIdNot(Long equipmentId, String status, Long id);
 
     long countByEquipmentIdAndStatus(Long equipmentId, String status);
@@ -134,4 +136,10 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
             @Param("priority") String priority,
             Pageable pageable
     );
+
+    List<WorkOrder> findByEquipmentIdIn(List<Long> equipmentIds);
+
+    List<WorkOrder> findByEquipmentIdInAndStatusNotIn(List<Long> equipmentIds, Collection<String> statuses);
+
+    long countByEquipmentIdIn(List<Long> equipmentIds);
 }

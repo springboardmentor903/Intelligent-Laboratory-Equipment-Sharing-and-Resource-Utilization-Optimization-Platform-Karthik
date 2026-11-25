@@ -63,6 +63,12 @@ public class Equipment {
     @Column(name = "hourly_rate")
     private BigDecimal hourlyRate;
 
+    @Column(name = "purchase_date")
+    private java.time.LocalDate purchaseDate;
+
+    @Column(name = "purchase_cost", precision = 14, scale = 2)
+    private BigDecimal purchaseCost;
+
     @Column(nullable = false, columnDefinition = "boolean default false")
     private Boolean shareable = false;
 

@@ -62,4 +62,16 @@ public interface UsageChargeRepository extends JpaRepository<UsageCharge, Long>,
     @Query("SELECT COUNT(c) FROM UsageCharge c " +
            "WHERE c.institutionId = :instId AND c.status = 'PENDING' AND c.invoiceId IS NULL")
     long countPendingCharges(@Param("instId") Long institutionId);
+
+    @Query("SELECT c.equipmentId, COALESCE(SUM(c.amount), 0) FROM UsageCharge c " +
+           "WHERE c.equipmentId IN :equipmentIds AND c.status != 'CANCELLED' GROUP BY c.equipmentId")
+    List<Object[]> sumChargesByEquipmentIds(@Param("equipmentIds") List<Long> equipmentIds);
+
+    @Query("SELECT COALESCE(SUM(c.amount), 0) FROM UsageCharge c " +
+           "WHERE c.userId = :userId AND c.status != 'CANCELLED' AND c.createdAt >= :since")
+    BigDecimal sumUserChargesSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
+
+    @Query("SELECT COALESCE(SUM(c.amount), 0) FROM UsageCharge c " +
+           "WHERE c.institutionId = :instId AND c.status != 'CANCELLED'")
+    BigDecimal sumTotalChargesByInstitution(@Param("instId") Long institutionId);
 }

@@ -416,6 +416,29 @@ public class UserService {
     }
 
     @Transactional
+    public User deactivateUser(Long userId, String actorEmail) {
+        User actor = requireApprovedAdministrator(actorEmail);
+        User target = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+
+        List<String> targetRoles = getRoleNames(target.getId());
+        if (targetRoles.contains("SYSTEM_ADMIN") || targetRoles.contains("INSTITUTION_ADMIN")) {
+            throw new IllegalArgumentException("Administrator accounts cannot be deactivated directly.");
+        }
+
+        boolean isSysAdmin = getRoleNames(actor.getId()).contains("SYSTEM_ADMIN");
+        if (!isSysAdmin && !Objects.equals(actor.getInstitutionId(), target.getInstitutionId())) {
+            throw new IllegalArgumentException("User belongs to a different institution.");
+        }
+
+        target.setMembershipApproved(false);
+        target.setMembershipStatus("DEACTIVATED");
+        target.setReviewedBy(actor.getId());
+        target.setReviewedAt(LocalDateTime.now());
+        return userRepository.save(target);
+    }
+
+    @Transactional
     public User rejectMembership(Long userId, String administratorEmail, String reason) {
         User administrator = requireApprovedAdministrator(administratorEmail);
         User target = userRepository.findById(userId)

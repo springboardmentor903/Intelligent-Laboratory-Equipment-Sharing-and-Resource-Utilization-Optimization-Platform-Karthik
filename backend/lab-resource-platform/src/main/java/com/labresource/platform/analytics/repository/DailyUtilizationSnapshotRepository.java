@@ -23,4 +23,6 @@ public interface DailyUtilizationSnapshotRepository extends JpaRepository<DailyU
             Long departmentId, LocalDate start, LocalDate end);
 
     boolean existsBySnapshotDateAndEquipmentId(LocalDate snapshotDate, Long equipmentId);
+
+    Optional<DailyUtilizationSnapshot> findTopByInstitutionIdOrderBySnapshotDateDesc(Long institutionId);
 }

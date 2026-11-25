@@ -20,6 +20,7 @@ import Technicians from './pages/Technicians'
 import MyUsageCost from './pages/MyUsageCost'
 import Charges from './pages/Charges'
 import CostOverview from './pages/CostOverview'
+import Reports from './pages/Reports'
 import Budgets from './pages/Budgets'
 import Invoices from './pages/Invoices'
 import NotFound from './pages/NotFound'
@@ -67,6 +68,7 @@ export default function App() {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN', 'DEPARTMENT_HEAD']} />}>
           <Route path="/cost-overview" element={<CostOverview />} />
+          <Route path="/reports" element={<Reports />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['LAB_MANAGER', 'INSTITUTION_ADMIN', 'SYSTEM_ADMIN']} />}>
           <Route path="/charges" element={<Charges />} />

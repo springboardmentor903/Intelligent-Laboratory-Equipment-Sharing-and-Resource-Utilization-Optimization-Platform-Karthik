@@ -92,4 +92,40 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             List<String> statuses,
             LocalDateTime after
     );
+
+    @Query("SELECT b FROM Booking b WHERE b.userId = :userId AND b.status IN :statuses AND b.endTime >= :now ORDER BY b.startTime ASC")
+    List<Booking> findUpcomingUserBookings(
+            @Param("userId") Long userId,
+            @Param("statuses") List<String> statuses,
+            @Param("now") LocalDateTime now,
+            org.springframework.data.domain.Pageable pageable
+    );
+
+    @Query("SELECT b FROM Booking b WHERE b.userId = :userId AND b.createdAt >= :since")
+    List<Booking> findUserBookingsSince(
+            @Param("userId") Long userId,
+            @Param("since") LocalDateTime since
+    );
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.equipmentId IN :equipmentIds")
+    long countByEquipmentIdIn(@Param("equipmentIds") List<Long> equipmentIds);
+
+    @Query("SELECT b FROM Booking b WHERE b.equipmentId IN :equipmentIds AND b.createdAt >= :since")
+    List<Booking> findByEquipmentIdInAndCreatedAtAfter(
+            @Param("equipmentIds") List<Long> equipmentIds,
+            @Param("since") LocalDateTime since
+    );
+
+    @Query("SELECT b FROM Booking b WHERE b.equipmentId IN :equipmentIds AND b.startTime >= :start AND b.endTime <= :end")
+    List<Booking> findByEquipmentIdInAndPeriod(
+            @Param("equipmentIds") List<Long> equipmentIds,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("SELECT b FROM Booking b WHERE b.equipmentId IN :equipmentIds AND b.status = :status")
+    List<Booking> findByEquipmentIdInAndStatus(
+            @Param("equipmentIds") List<Long> equipmentIds,
+            @Param("status") String status
+    );
 }
