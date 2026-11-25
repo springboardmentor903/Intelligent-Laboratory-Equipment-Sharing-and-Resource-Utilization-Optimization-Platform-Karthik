@@ -17,7 +17,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/technicians")
 public class TechnicianController {
 
     private final WorkOrderService workOrderService;
@@ -28,7 +27,7 @@ public class TechnicianController {
         this.resourceAccess = resourceAccess;
     }
 
-    @GetMapping
+    @GetMapping({"/api/technicians", "/api/technicians/workload"})
     @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_MANAGER', 'INSTITUTION_ADMIN')")
     public ResponseEntity<List<TechnicianWorkloadDTO>> getTechniciansWorkload(
             @RequestParam(required = false) Long institutionId,
@@ -37,7 +36,7 @@ public class TechnicianController {
         return ResponseEntity.ok(workOrderService.getTechniciansWorkload(scopedInstId, authentication.getName()));
     }
 
-    @GetMapping("/workload")
+    @GetMapping("/api/technicians/workload-details")
     @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_MANAGER', 'INSTITUTION_ADMIN')")
     public ResponseEntity<List<TechnicianWorkloadDTO>> getWorkload(
             @RequestParam(required = false) Long institutionId,
@@ -46,7 +45,7 @@ public class TechnicianController {
         return ResponseEntity.ok(workOrderService.getTechniciansWorkload(scopedInstId, authentication.getName()));
     }
 
-    @GetMapping("/my-tasks")
+    @GetMapping({"/api/technicians/my-tasks", "/api/my-tasks"})
     @PreAuthorize("@resourceAccess.hasAnyRole(authentication, 'LAB_TECHNICIAN', 'LAB_MANAGER', 'INSTITUTION_ADMIN')")
     public ResponseEntity<TechnicianTasksResponse> getMyTasks(
             @RequestParam(required = false) String status,
