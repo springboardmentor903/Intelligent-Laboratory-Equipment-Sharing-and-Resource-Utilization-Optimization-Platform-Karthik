@@ -43,6 +43,7 @@ database/backups/
 *.zip
 *.tar.gz
 *.xlsx
+!Task Tracker Lab_Resource_Utilization_Platform.xlsx
 *.pdf
 xl/
 
