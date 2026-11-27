@@ -17,6 +17,11 @@ import {
   canManageInvoices,
 } from '../access/billingWorkflow.js'
 import { canViewReports } from '../access/reportWorkflow.js'
+import {
+  canViewWorkOrders,
+  canAccessMyTasks,
+  canViewTechnicianWorkload,
+} from '../access/maintenanceWorkflow.js'
 
 function SunIcon() {
   return (
@@ -71,6 +76,9 @@ const ROUTE_ICONS = {
   '/utilization': '📈',
   '/monitoring': '📡',
   '/maintenance': '🔧',
+  '/calibration': '🎯',
+  '/my-tasks': '📋',
+  '/technicians': '👷',
   '/profile': '👤',
   '/sharing-analytics': '📉',
   '/my-usage-cost': '💳',
@@ -96,8 +104,30 @@ export default function Navbar() {
   const isDark = theme === 'dark'
   const [unreadCount, setUnreadCount] = useState(0)
   const [recentNotifications, setRecentNotifications] = useState([])
-  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(null)
   const [loadingDropdown, setLoadingDropdown] = useState(false)
+  const [collapsedSections, setCollapsedSections] = useState({
+    main: false,
+    billing: false,
+  })
+
+  const toggleSection = (sectionKey) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
+    }))
+  }
+
+  // Auto-close mobile drawer when window resizes to desktop width
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 900) {
+        setMobileOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const fetchUnreadCount = useCallback(async () => {
     if (!isAuthenticated) return
@@ -124,17 +154,21 @@ export default function Navbar() {
     }
   }, [isAuthenticated])
 
-  const handleToggleDropdown = () => {
-    if (!dropdownOpen) {
+  const handleToggleDropdown = (source) => {
+    if (dropdownOpen !== source) {
       fetchRecentNotifications()
-      setDropdownOpen(true)
+      setDropdownOpen(source)
     } else {
-      setDropdownOpen(false)
+      setDropdownOpen(null)
     }
   }
 
   const handleCloseDropdown = () => {
-    setDropdownOpen(false)
+    setDropdownOpen(null)
+  }
+
+  const closeDrawer = () => {
+    setMobileOpen(false)
   }
 
   const handleNotificationClick = async (item) => {
@@ -150,7 +184,7 @@ export default function Navbar() {
         // Ignore patch failure
       }
     }
-    setDropdownOpen(false)
+    setDropdownOpen(null)
     closeDrawer()
     navigate(getNotificationRoute(item))
   }
@@ -160,7 +194,7 @@ export default function Navbar() {
     if (!isAuthenticated) {
       setUnreadCount(0)
       setRecentNotifications([])
-      setDropdownOpen(false)
+      setDropdownOpen(null)
       return
     }
 
@@ -212,11 +246,10 @@ export default function Navbar() {
     logout()
     setUnreadCount(0)
     setRecentNotifications([])
-    setDropdownOpen(false)
-    navigate('/', { replace: true })
+    setDropdownOpen(null)
+    setMobileOpen(false)
+    navigate('/login', { replace: true })
   }
-
-  const closeDrawer = () => setMobileOpen(false)
 
   return (
     <>
@@ -247,8 +280,8 @@ export default function Navbar() {
           {isAuthenticated && (
             <NotificationBellDropdown
               unreadCount={unreadCount}
-              isOpen={dropdownOpen}
-              onToggle={handleToggleDropdown}
+              isOpen={dropdownOpen === 'topbar'}
+              onToggle={() => handleToggleDropdown('topbar')}
               onClose={handleCloseDropdown}
               notifications={recentNotifications}
               loading={loadingDropdown}
@@ -296,8 +329,8 @@ export default function Navbar() {
             {isAuthenticated && (
               <NotificationBellDropdown
                 unreadCount={unreadCount}
-                isOpen={dropdownOpen}
-                onToggle={handleToggleDropdown}
+                isOpen={dropdownOpen === 'sidebar'}
+                onToggle={() => handleToggleDropdown('sidebar')}
                 onClose={handleCloseDropdown}
                 notifications={recentNotifications}
                 loading={loadingDropdown}
@@ -317,133 +350,197 @@ export default function Navbar() {
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
-          <div className="sidebar-nav-section-title">Navigation</div>
-          <div className="navbar-links">
-            <NavLink to="/" end className={navLinkClass} onClick={closeDrawer}>
-              <span className="sidebar-link-icon" aria-hidden="true">
-                {ROUTE_ICONS['/']}
-              </span>
-              <span className="sidebar-link-text">Home</span>
-            </NavLink>
+          <button
+            type="button"
+            className="sidebar-section-toggle"
+            onClick={() => toggleSection('main')}
+            aria-expanded={!collapsedSections.main}
+          >
+            <span>Navigation</span>
+            <span
+              className={`sidebar-section-arrow ${collapsedSections.main ? 'collapsed' : ''}`}
+              aria-hidden="true"
+            >
+              ▼
+            </span>
+          </button>
 
-            {!isAuthenticated ? (
-              <>
-                <NavLink to="/login" className={navLinkClass} onClick={closeDrawer}>
-                  <span className="sidebar-link-icon" aria-hidden="true">
-                    {ROUTE_ICONS['/login']}
-                  </span>
-                  <span className="sidebar-link-text">Login</span>
-                </NavLink>
-                <NavLink to="/register" className={navLinkClass} onClick={closeDrawer}>
-                  <span className="sidebar-link-icon" aria-hidden="true">
-                    {ROUTE_ICONS['/register']}
-                  </span>
-                  <span className="sidebar-link-text">Register</span>
-                </NavLink>
-                <NavLink to="/register-institution" className={navLinkClass} onClick={closeDrawer}>
-                  <span className="sidebar-link-icon" aria-hidden="true">
-                    {ROUTE_ICONS['/register-institution']}
-                  </span>
-                  <span className="sidebar-link-text">Register Institution</span>
-                </NavLink>
-              </>
-            ) : (
-              <>
-                {roleNavigation.map((item) => (
-                  <NavLink
-                    to={item.to}
-                    className={navLinkClass}
-                    key={item.to}
-                    onClick={closeDrawer}
-                  >
+          {!collapsedSections.main && (
+            <div className="navbar-links">
+              <NavLink to="/" end className={navLinkClass} onClick={closeDrawer}>
+                <span className="sidebar-link-icon" aria-hidden="true">
+                  {ROUTE_ICONS['/']}
+                </span>
+                <span className="sidebar-link-text">Home</span>
+              </NavLink>
+
+              {!isAuthenticated ? (
+                <>
+                  <NavLink to="/login" className={navLinkClass} onClick={closeDrawer}>
                     <span className="sidebar-link-icon" aria-hidden="true">
-                      {ROUTE_ICONS[item.to] || '📌'}
+                      {ROUTE_ICONS['/login']}
                     </span>
-                    <span className="sidebar-link-text">{item.label}</span>
+                    <span className="sidebar-link-text">Login</span>
                   </NavLink>
-                ))}
-
-                <NavLink to="/notifications" className={navLinkClass} onClick={closeDrawer}>
-                  <span className="sidebar-link-icon" aria-hidden="true">
-                    {ROUTE_ICONS['/notifications']}
-                  </span>
-                  <span className="sidebar-link-text" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <span>Notifications</span>
-                    {formatUnreadCount(unreadCount) && (
-                      <span
-                        style={{
-                          background: '#ef4444',
-                          color: '#ffffff',
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          borderRadius: 10,
-                          padding: '1px 6px',
-                          marginLeft: 8,
-                        }}
-                      >
-                        {formatUnreadCount(unreadCount)}
+                  <NavLink to="/register" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/register']}
+                    </span>
+                    <span className="sidebar-link-text">Register</span>
+                  </NavLink>
+                  <NavLink to="/register-institution" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/register-institution']}
+                    </span>
+                    <span className="sidebar-link-text">Register Institution</span>
+                  </NavLink>
+                </>
+              ) : (
+                <>
+                  {roleNavigation.map((item) => (
+                    <NavLink
+                      to={item.to}
+                      className={navLinkClass}
+                      key={item.to}
+                      onClick={closeDrawer}
+                    >
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS[item.to] || '📌'}
                       </span>
-                    )}
-                  </span>
-                </NavLink>
+                      <span className="sidebar-link-text">{item.label}</span>
+                    </NavLink>
+                  ))}
 
-                <div className="sidebar-nav-section-title" style={{ marginTop: 14 }}>
-                  Billing & Costs
+                  {canViewWorkOrders(user?.roles) && (
+                    <NavLink to="/calibration" className={navLinkClass} onClick={closeDrawer}>
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS['/calibration']}
+                      </span>
+                      <span className="sidebar-link-text">Calibration</span>
+                    </NavLink>
+                  )}
+
+                  {canAccessMyTasks(user?.roles) && (
+                    <NavLink to="/my-tasks" className={navLinkClass} onClick={closeDrawer}>
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS['/my-tasks']}
+                      </span>
+                      <span className="sidebar-link-text">My Tasks</span>
+                    </NavLink>
+                  )}
+
+                  {canViewTechnicianWorkload(user?.roles) && (
+                    <NavLink to="/technicians" className={navLinkClass} onClick={closeDrawer}>
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS['/technicians']}
+                      </span>
+                      <span className="sidebar-link-text">Technicians</span>
+                    </NavLink>
+                  )}
+
+                  <NavLink to="/notifications" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/notifications']}
+                    </span>
+                    <span className="sidebar-link-text" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <span>Notifications</span>
+                      {formatUnreadCount(unreadCount) && (
+                        <span
+                          style={{
+                            background: '#ef4444',
+                            color: '#ffffff',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            borderRadius: 10,
+                            padding: '1px 6px',
+                            marginLeft: 8,
+                          }}
+                        >
+                          {formatUnreadCount(unreadCount)}
+                        </span>
+                      )}
+                    </span>
+                  </NavLink>
+                </>
+              )}
+            </div>
+          )}
+
+          {isAuthenticated && (
+            <>
+              <button
+                type="button"
+                className="sidebar-section-toggle"
+                onClick={() => toggleSection('billing')}
+                aria-expanded={!collapsedSections.billing}
+                style={{ marginTop: 14 }}
+              >
+                <span>Billing & Costs</span>
+                <span
+                  className={`sidebar-section-arrow ${collapsedSections.billing ? 'collapsed' : ''}`}
+                  aria-hidden="true"
+                >
+                  ▼
+                </span>
+              </button>
+
+              {!collapsedSections.billing && (
+                <div className="navbar-links">
+                  <NavLink to="/my-usage-cost" className={navLinkClass} onClick={closeDrawer}>
+                    <span className="sidebar-link-icon" aria-hidden="true">
+                      {ROUTE_ICONS['/my-usage-cost']}
+                    </span>
+                    <span className="sidebar-link-text">My Usage Costs</span>
+                  </NavLink>
+
+                  {canViewCostOverview(user?.roles) && (
+                    <NavLink to="/cost-overview" className={navLinkClass} onClick={closeDrawer}>
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS['/cost-overview']}
+                      </span>
+                      <span className="sidebar-link-text">Cost Overview</span>
+                    </NavLink>
+                  )}
+
+                  {canViewCharges(user?.roles) && (
+                    <NavLink to="/charges" className={navLinkClass} onClick={closeDrawer}>
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS['/charges']}
+                      </span>
+                      <span className="sidebar-link-text">Charges</span>
+                    </NavLink>
+                  )}
+
+                  {canViewBudgets(user?.roles) && (
+                    <NavLink to="/budgets" className={navLinkClass} onClick={closeDrawer}>
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS['/budgets']}
+                      </span>
+                      <span className="sidebar-link-text">Budgets</span>
+                    </NavLink>
+                  )}
+
+                  {canManageInvoices(user?.roles) && (
+                    <NavLink to="/invoices" className={navLinkClass} onClick={closeDrawer}>
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS['/invoices']}
+                      </span>
+                      <span className="sidebar-link-text">Invoices</span>
+                    </NavLink>
+                  )}
+
+                  {canViewReports(user?.roles) && (
+                    <NavLink to="/reports" className={navLinkClass} onClick={closeDrawer}>
+                      <span className="sidebar-link-icon" aria-hidden="true">
+                        {ROUTE_ICONS['/reports'] || '📑'}
+                      </span>
+                      <span className="sidebar-link-text">Reports</span>
+                    </NavLink>
+                  )}
                 </div>
-                <NavLink to="/my-usage-cost" className={navLinkClass} onClick={closeDrawer}>
-                  <span className="sidebar-link-icon" aria-hidden="true">
-                    {ROUTE_ICONS['/my-usage-cost']}
-                  </span>
-                  <span className="sidebar-link-text">My Usage Costs</span>
-                </NavLink>
-
-                {canViewCostOverview(user?.roles) && (
-                  <NavLink to="/cost-overview" className={navLinkClass} onClick={closeDrawer}>
-                    <span className="sidebar-link-icon" aria-hidden="true">
-                      {ROUTE_ICONS['/cost-overview']}
-                    </span>
-                    <span className="sidebar-link-text">Cost Overview</span>
-                  </NavLink>
-                )}
-
-                {canViewCharges(user?.roles) && (
-                  <NavLink to="/charges" className={navLinkClass} onClick={closeDrawer}>
-                    <span className="sidebar-link-icon" aria-hidden="true">
-                      {ROUTE_ICONS['/charges']}
-                    </span>
-                    <span className="sidebar-link-text">Charges</span>
-                  </NavLink>
-                )}
-
-                {canViewBudgets(user?.roles) && (
-                  <NavLink to="/budgets" className={navLinkClass} onClick={closeDrawer}>
-                    <span className="sidebar-link-icon" aria-hidden="true">
-                      {ROUTE_ICONS['/budgets']}
-                    </span>
-                    <span className="sidebar-link-text">Budgets</span>
-                  </NavLink>
-                )}
-
-                {canManageInvoices(user?.roles) && (
-                  <NavLink to="/invoices" className={navLinkClass} onClick={closeDrawer}>
-                    <span className="sidebar-link-icon" aria-hidden="true">
-                      {ROUTE_ICONS['/invoices']}
-                    </span>
-                    <span className="sidebar-link-text">Invoices</span>
-                  </NavLink>
-                )}
-
-                {canViewReports(user?.roles) && (
-                  <NavLink to="/reports" className={navLinkClass} onClick={closeDrawer}>
-                    <span className="sidebar-link-icon" aria-hidden="true">
-                      {ROUTE_ICONS['/reports'] || '📑'}
-                    </span>
-                    <span className="sidebar-link-text">Reports</span>
-                  </NavLink>
-                )}
-              </>
-            )}
-          </div>
+              )}
+            </>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -482,6 +579,7 @@ export default function Navbar() {
                 type="button"
                 className="navbar-logout"
                 onClick={handleLogout}
+                aria-label="Log out of application"
               >
                 Logout
               </button>
