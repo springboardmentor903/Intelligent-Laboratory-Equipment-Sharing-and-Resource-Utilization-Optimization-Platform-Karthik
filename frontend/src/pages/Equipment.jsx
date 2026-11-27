@@ -780,24 +780,24 @@ export default function Equipment() {
                   <table className="module-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
-                        <th style={{ padding: '8px' }}>Order #</th>
+                        <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Order #</th>
                         <th style={{ padding: '8px' }}>Title</th>
-                        <th style={{ padding: '8px' }}>Type</th>
-                        <th style={{ padding: '8px' }}>Technician</th>
-                        <th style={{ padding: '8px' }}>Completed At</th>
-                        <th style={{ padding: '8px' }}>Cost</th>
+                        <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Type</th>
+                        <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Technician</th>
+                        <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Completed At</th>
+                        <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Cost</th>
                         <th style={{ padding: '8px' }}>Resolution Notes</th>
                       </tr>
                     </thead>
                     <tbody>
                       {serviceHistory.map((wo) => (
                         <tr key={wo.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '8px', fontWeight: 700, fontFamily: 'monospace' }}>{wo.workOrderNumber}</td>
+                          <td style={{ padding: '8px', fontWeight: 700, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{wo.workOrderNumber}</td>
                           <td style={{ padding: '8px', fontWeight: 600 }}>{wo.title}</td>
-                          <td style={{ padding: '8px' }}>{wo.workOrderType}</td>
-                          <td style={{ padding: '8px' }}>{wo.assignedTechnicianName || '—'}</td>
-                          <td style={{ padding: '8px' }}>{wo.completedAt ? new Date(wo.completedAt).toLocaleString() : '—'}</td>
-                          <td style={{ padding: '8px' }}>{wo.cost ? `₹${wo.cost}` : '—'}</td>
+                          <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{wo.workOrderType}</td>
+                          <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{wo.assignedTechnicianName || '—'}</td>
+                          <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{wo.completedAt ? new Date(wo.completedAt).toLocaleString() : '—'}</td>
+                          <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{wo.cost ? `₹${wo.cost}` : '—'}</td>
                           <td style={{ padding: '8px' }}>{wo.resolutionNotes || '—'}</td>
                         </tr>
                       ))}
@@ -952,7 +952,7 @@ export default function Equipment() {
 
       {problemModalOpen && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '500px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 700 }}>Report Problem: {problemEquipment?.name}</h3>
             {problemSuccess && <div className="auth-success" style={{ marginBottom: '12px' }}>{problemSuccess}</div>}
             {problemError && <div className="module-alert" style={{ marginBottom: '12px' }}>{problemError}</div>}

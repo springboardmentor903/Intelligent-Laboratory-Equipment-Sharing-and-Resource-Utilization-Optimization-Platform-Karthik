@@ -374,14 +374,14 @@ export default function Calibration() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 text-xs uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3 px-4">Equipment</th>
-                  <th className="py-3 px-4">Department</th>
-                  <th className="py-3 px-4">Last Calibrated</th>
-                  <th className="py-3 px-4">Next Due Date</th>
-                  <th className="py-3 px-4">Days Remaining</th>
-                  <th className="py-3 px-4">State</th>
-                  <th className="py-3 px-4">Active Work Order</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Equipment</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Department</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Last Calibrated</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Next Due Date</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Days Remaining</th>
+                  <th className="py-3 px-4 whitespace-nowrap">State</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Active Work Order</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -397,19 +397,19 @@ export default function Calibration() {
                           {item.assetTag ? `Tag: ${item.assetTag}` : ''}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
                         {item.departmentName || '—'}
                       </td>
-                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         {item.latestCalibrationDate || <span className="text-slate-400 italic">None recorded</span>}
                         {item.latestResult && (
                           <span className="ml-1.5 text-xs font-semibold text-slate-500">({item.latestResult})</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap">
                         {item.nextDueDate || '—'}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {item.daysUntilDue != null ? (
                           <span className={`font-semibold ${
                             item.daysUntilDue < 0
@@ -426,7 +426,7 @@ export default function Calibration() {
                           <span className="text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                           stateBadge.tone === 'success'
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
@@ -439,7 +439,7 @@ export default function Calibration() {
                           {item.calibrationState}
                         </span>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {item.activeWorkOrderNumber ? (
                           <Link
                             to={`/maintenance?tab=work-orders&wo=${item.activeWorkOrderNumber}`}
@@ -451,7 +451,7 @@ export default function Calibration() {
                           <span className="text-xs text-slate-400 italic">None</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"

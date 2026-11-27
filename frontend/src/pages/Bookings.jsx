@@ -787,31 +787,31 @@ export default function Bookings() {
                     )}
                   </div>
                   {recurringPreview?.createdBookings?.length > 0 && (
-                    <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
+                    <div style={{ gridColumn: '1 / -1', marginTop: '8px', overflowX: 'auto' }}>
                       <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                            <th style={{ padding: '6px' }}>#</th>
-                            <th style={{ padding: '6px' }}>Start Time</th>
-                            <th style={{ padding: '6px' }}>End Time</th>
-                            <th style={{ padding: '6px' }}>Status</th>
+                            <th style={{ padding: '6px', whiteSpace: 'nowrap' }}>#</th>
+                            <th style={{ padding: '6px', whiteSpace: 'nowrap' }}>Start Time</th>
+                            <th style={{ padding: '6px', whiteSpace: 'nowrap' }}>End Time</th>
+                            <th style={{ padding: '6px', whiteSpace: 'nowrap' }}>Status</th>
                           </tr>
                         </thead>
                         <tbody>
                           {recurringPreview.createdBookings.map((occ, idx) => (
                             <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
-                              <td style={{ padding: '6px' }}>{idx + 1}</td>
-                              <td style={{ padding: '6px' }}>{formatDate(occ.startTime)}</td>
-                              <td style={{ padding: '6px' }}>{formatDate(occ.endTime)}</td>
-                              <td style={{ padding: '6px', color: '#10b981', fontWeight: 600 }}>✓ Available</td>
+                              <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>{idx + 1}</td>
+                              <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>{formatDate(occ.startTime)}</td>
+                              <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>{formatDate(occ.endTime)}</td>
+                              <td style={{ padding: '6px', color: '#10b981', fontWeight: 600, whiteSpace: 'nowrap' }}>✓ Available</td>
                             </tr>
                           ))}
                           {recurringPreview.conflictedSlots?.map((cSlot, cIdx) => (
                             <tr key={`conf-${cIdx}`} style={{ borderBottom: '1px solid var(--border)', background: 'rgba(239, 68, 68, 0.05)' }}>
-                              <td style={{ padding: '6px' }}>—</td>
-                              <td style={{ padding: '6px' }}>{formatDate(cSlot)}</td>
-                              <td style={{ padding: '6px' }}>—</td>
-                              <td style={{ padding: '6px', color: '#ef4444', fontWeight: 600 }}>✕ Conflicted</td>
+                              <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>—</td>
+                              <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>{formatDate(cSlot)}</td>
+                              <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>—</td>
+                              <td style={{ padding: '6px', color: '#ef4444', fontWeight: 600, whiteSpace: 'nowrap' }}>✕ Conflicted</td>
                             </tr>
                           ))}
                         </tbody>

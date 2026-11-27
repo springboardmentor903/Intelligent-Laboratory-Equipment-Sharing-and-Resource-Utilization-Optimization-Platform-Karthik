@@ -271,14 +271,14 @@ export default function Charges() {
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)', background: 'var(--table-header-bg, #f8fafc)' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Charge #</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Charge #</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Equipment</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Booking & User</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Duration</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Rate</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Type</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Status</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Amount</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Duration</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Rate</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Type</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -289,7 +289,7 @@ export default function Charges() {
 
                   return (
                     <tr key={charge.id} style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
-                      <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--text-muted, #64748b)', fontWeight: 600 }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--text-muted, #64748b)', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         #{charge.id}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
@@ -302,16 +302,16 @@ export default function Charges() {
                           User #{charge.userId} {charge.departmentName ? `• ${charge.departmentName}` : ''}
                         </small>
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                         {charge.usageMinutes}m ({durationHours}h)
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #64748b)' }}>
                           {formatSharedTime(charge.createdAt)}
                         </div>
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                         {charge.hourlyRateSnapshot != null ? `${formatAmount(charge.hourlyRateSnapshot)}/h` : '—'}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -323,7 +323,7 @@ export default function Charges() {
                           {typeBadge.label}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -340,7 +340,7 @@ export default function Charges() {
                           </div>
                         )}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary, #0f172a)' }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary, #0f172a)', whiteSpace: 'nowrap' }}>
                         {formatAmount(charge.calculatedAmount)}
                       </td>
                     </tr>

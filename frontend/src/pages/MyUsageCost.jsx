@@ -92,13 +92,13 @@ export default function MyUsageCost() {
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)', background: 'var(--table-header-bg, #f8fafc)' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Equipment</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Date / Window</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Duration</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Hourly Rate</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Type</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Status</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Calculated Amount</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Equipment</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Date / Window</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Duration</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Hourly Rate</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Type</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Calculated Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,17 +113,17 @@ export default function MyUsageCost() {
                         <div style={{ fontWeight: 600 }}>{charge.equipmentName || 'Equipment'}</div>
                         <small style={{ color: 'var(--text-muted, #64748b)' }}>Tag: {charge.assetTag || '—'}</small>
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                         <div>{formatSharedTime(charge.createdAt)}</div>
                         <small style={{ color: 'var(--text-muted, #64748b)' }}>Booking #{charge.bookingId}</small>
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                         {charge.usageMinutes} mins ({durationHours} h)
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                         {charge.hourlyRateSnapshot != null ? `${formatAmount(charge.hourlyRateSnapshot)} / hr` : '—'}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -135,7 +135,7 @@ export default function MyUsageCost() {
                           {typeBadge.label}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -147,7 +147,7 @@ export default function MyUsageCost() {
                           {statusBadge.label}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary, #0f172a)' }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary, #0f172a)', whiteSpace: 'nowrap' }}>
                         {formatAmount(charge.calculatedAmount)}
                       </td>
                     </tr>

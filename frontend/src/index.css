@@ -67,6 +67,12 @@
   /* Theme toggle icon colors (light mode: cool dark-blue/slate for moon) */
   --theme-toggle-sun: #d97706;
   --theme-toggle-moon: #334155;
+
+  /* Card and table aliases */
+  --bg-card: var(--surface);
+  --border-color: var(--border);
+  --table-header-bg: var(--surface-secondary);
+  --text-primary: var(--text);
 }
 
 :root[data-theme="dark"] {
@@ -79,6 +85,12 @@
   --text: #f8fafc;
   --text-muted: #94a3b8;
   --border: #334155;
+
+  /* Card and table aliases */
+  --bg-card: var(--surface);
+  --border-color: var(--border);
+  --table-header-bg: var(--surface-secondary);
+  --text-primary: var(--text);
 
   /* 1. Primary brand & active navigation accent: Teal / Ocean Sky Blue */
   --primary: #2dd4bf;

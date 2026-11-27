@@ -169,13 +169,13 @@ export default function Technicians() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 text-xs uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3 px-4">Technician</th>
-                  <th className="py-3 px-4 text-center">Active Tasks</th>
-                  <th className="py-3 px-4 text-center">In Progress</th>
-                  <th className="py-3 px-4 text-center">Overdue</th>
-                  <th className="py-3 px-4">Next Scheduled Date</th>
-                  <th className="py-3 px-4 text-center">Total Tasks</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Technician</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Active Tasks</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">In Progress</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Overdue</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Next Scheduled Date</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Total Tasks</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -190,7 +190,7 @@ export default function Technicians() {
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${
                         (tech.activeTasks || 0) > 0
                           ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
@@ -200,7 +200,7 @@ export default function Technicians() {
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${
                         (tech.inProgressTasks || 0) > 0
                           ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
@@ -210,7 +210,7 @@ export default function Technicians() {
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${
                         (tech.overdueTasks || 0) > 0
                           ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-extrabold'
@@ -220,7 +220,7 @@ export default function Technicians() {
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300 text-xs font-medium">
+                    <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300 text-xs font-medium whitespace-nowrap">
                       {tech.nextScheduledDate ? (
                         new Date(tech.nextScheduledDate).toLocaleDateString()
                       ) : (
@@ -228,11 +228,11 @@ export default function Technicians() {
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-400 font-semibold text-xs">
+                    <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-400 font-semibold text-xs whitespace-nowrap">
                       {tech.totalTasks || 0}
                     </td>
 
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <Link
                         to={`/maintenance?tab=work-orders&technician=${tech.id}`}
                         className="px-3 py-1 text-xs font-semibold rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 transition"

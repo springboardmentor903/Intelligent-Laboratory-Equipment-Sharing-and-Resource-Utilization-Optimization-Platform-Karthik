@@ -422,6 +422,7 @@ export default function Reports() {
                             color: isSorted ? 'var(--primary, #0f766e)' : 'var(--text)',
                             cursor: 'pointer',
                             userSelect: 'none',
+                            whiteSpace: 'nowrap',
                             textAlign: (col.type === 'NUMBER' || col.type === 'CURRENCY' || col.type === 'PERCENTAGE') ? 'right' : 'left'
                           }}
                         >
@@ -447,6 +448,7 @@ export default function Reports() {
                           style={{
                             padding: '10px 12px',
                             color: 'var(--text)',
+                            whiteSpace: 'nowrap',
                             textAlign: (col.type === 'NUMBER' || col.type === 'CURRENCY' || col.type === 'PERCENTAGE') ? 'right' : 'left'
                           }}
                         >

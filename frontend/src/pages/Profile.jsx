@@ -417,15 +417,15 @@ function InstitutionDepartmentManagement({ institutionId, onDepartmentChange }) 
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border-color, #cbd5e1)' }}>
-                <th style={{ padding: '0.5rem' }}>ID</th>
+                <th style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>ID</th>
                 <th style={{ padding: '0.5rem' }}>Department Name</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '0.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {departments.map((dept) => (
                 <tr key={dept.id} style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
-                  <td style={{ padding: '0.5rem' }}>#{dept.id}</td>
+                  <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>#{dept.id}</td>
                   <td style={{ padding: '0.5rem' }}>
                     {editingId === dept.id ? (
                       <input
@@ -440,7 +440,7 @@ function InstitutionDepartmentManagement({ institutionId, onDepartmentChange }) 
                       <strong>{dept.name}</strong>
                     )}
                   </td>
-                  <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                  <td style={{ padding: '0.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {editingId === dept.id ? (
                       <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
                         <button
@@ -1116,22 +1116,22 @@ function SystemAdminInstitutions() {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border-color, #cbd5e1)' }}>
-                <th style={{ padding: '0.5rem' }}>ID</th>
+                <th style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>ID</th>
                 <th style={{ padding: '0.5rem' }}>Name</th>
                 <th style={{ padding: '0.5rem' }}>Location</th>
                 <th style={{ padding: '0.5rem' }}>Contact</th>
-                <th style={{ padding: '0.5rem' }}>Status</th>
-                <th style={{ padding: '0.5rem' }}>Action</th>
+                <th style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>Status</th>
+                <th style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {institutions.map((inst) => (
                 <tr key={inst.id} style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
-                  <td style={{ padding: '0.5rem' }}>#{inst.id}</td>
+                  <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>#{inst.id}</td>
                   <td style={{ padding: '0.5rem' }}><strong>{inst.name}</strong></td>
                   <td style={{ padding: '0.5rem' }}>{inst.location || inst.address || '—'}</td>
                   <td style={{ padding: '0.5rem' }}>{inst.contactEmail || inst.phoneNumber || '—'}</td>
-                  <td style={{ padding: '0.5rem' }}>
+                  <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>
                     <span
                       style={{
                         padding: '0.2rem 0.5rem',
@@ -1145,7 +1145,7 @@ function SystemAdminInstitutions() {
                       {inst.status || 'APPROVED'}
                     </span>
                   </td>
-                  <td style={{ padding: '0.5rem' }}>
+                  <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>
                     <button
                       type="button"
                       className="secondary-button"

@@ -105,23 +105,7 @@ export default function NotificationBellDropdown({
       </button>
 
       {isOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            right: 0,
-            width: 320,
-            maxWidth: '90vw',
-            background: 'var(--surface, #ffffff)',
-            border: '1px solid var(--border, #e2e8f0)',
-            borderRadius: 10,
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.12)',
-            zIndex: 300,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
+        <div className="notification-dropdown-menu">
           {/* Header */}
           <div
             style={{

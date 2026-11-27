@@ -295,12 +295,12 @@ export default function CostOverview() {
                 <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)', background: 'var(--table-header-bg, #f8fafc)' }}>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Equipment</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Usage Duration</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Internal Usage</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>External Usage</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Total Usage Cost</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', color: '#ea580c' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Equipment</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Usage Duration</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Internal Usage</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>External Usage</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Total Usage Cost</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', color: '#ea580c', whiteSpace: 'nowrap' }}>
                         Maintenance Cost
                       </th>
                     </tr>
@@ -312,22 +312,22 @@ export default function CostOverview() {
                           <div style={{ fontWeight: 600 }}>{item.equipmentName}</div>
                           <small style={{ color: 'var(--text-muted, #64748b)' }}>Tag: {item.assetTag || '—'}</small>
                         </td>
-                        <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>
+                        <td style={{ padding: '12px 16px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                           {item.usageHours != null ? `${Number(item.usageHours).toFixed(2)} hrs` : '0.00 hrs'}
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #64748b)' }}>
                             ({item.usageMinutes || 0} mins)
                           </div>
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                           {formatAmount(item.internalUsageCost)}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                           {formatAmount(item.externalUsageCost)}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#0284c7', whiteSpace: 'nowrap' }}>
                           {formatAmount(item.totalUsageCost)}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#ea580c' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#ea580c', whiteSpace: 'nowrap' }}>
                           {formatAmount(item.maintenanceCost)}
                         </td>
                       </tr>
@@ -408,29 +408,29 @@ export default function CostOverview() {
                 <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)', background: 'var(--table-header-bg, #f8fafc)' }}>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Department</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Internal Usage</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>External Sharing</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Total Spend</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Share of Total</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Department</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Internal Usage</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>External Sharing</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Total Spend</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Share of Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {departmentData.allocations.map((alloc) => (
                       <tr key={alloc.departmentId} style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
-                        <td style={{ padding: '12px 16px', fontWeight: 600 }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {alloc.departmentName}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                           {formatAmount(alloc.internalCost)}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                           {formatAmount(alloc.externalCost)}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--primary, #0284c7)' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--primary, #0284c7)', whiteSpace: 'nowrap' }}>
                           {formatAmount(alloc.totalCost)}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                             <div style={{ width: 60, height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
                               <div

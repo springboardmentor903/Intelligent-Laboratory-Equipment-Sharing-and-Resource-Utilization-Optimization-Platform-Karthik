@@ -495,16 +495,16 @@ export default function Invoices() {
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)', background: 'var(--table-header-bg, #f8fafc)' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Invoice #</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Type</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Invoice #</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Type</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>
                     {activeTab === 'ISSUED' ? 'Client / Recipient' : 'Issuer'}
                   </th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Issue Date</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Due Date</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Status</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Total Amount</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>Details</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Issue Date</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Due Date</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Total Amount</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', whiteSpace: 'nowrap' }}>Details</th>
                 </tr>
               </thead>
               <tbody>
@@ -513,10 +513,10 @@ export default function Invoices() {
 
                   return (
                     <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--primary, #0284c7)' }}>
+                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--primary, #0284c7)', whiteSpace: 'nowrap' }}>
                         {inv.invoiceNumber}
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                         {inv.invoiceType === 'INTER_INSTITUTION' ? 'Inter-Institution' : 'Dept Chargeback'}
                       </td>
                       <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>
@@ -526,13 +526,13 @@ export default function Invoices() {
                           inv.issuingInstitutionName || '—'
                         )}
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                         {inv.issueDate || '—'}
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: statusBadge.isOverdue ? '#dc2626' : 'inherit', fontWeight: statusBadge.isOverdue ? 600 : 'normal' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: statusBadge.isOverdue ? '#dc2626' : 'inherit', fontWeight: statusBadge.isOverdue ? 600 : 'normal', whiteSpace: 'nowrap' }}>
                         {inv.dueDate || '—'}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -544,10 +544,10 @@ export default function Invoices() {
                           {statusBadge.label}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem' }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
                         {formatAmount(inv.totalAmount)}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           className="button-secondary"

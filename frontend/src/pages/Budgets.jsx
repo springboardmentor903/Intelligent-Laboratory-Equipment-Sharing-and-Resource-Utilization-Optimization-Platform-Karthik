@@ -212,15 +212,15 @@ export default function Budgets() {
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)', background: 'var(--table-header-bg, #f8fafc)' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Department</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Fiscal Year</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Allocated Budget</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Current Spend</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Remaining</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Usage %</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem' }}>Status</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Department</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Fiscal Year</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Allocated Budget</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Current Spend</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Remaining</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Usage %</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Status</th>
                   {canEdit && (
-                    <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Action</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>Action</th>
                   )}
                 </tr>
               </thead>
@@ -232,19 +232,19 @@ export default function Budgets() {
 
                   return (
                     <tr key={b.departmentId} style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>
+                      <td style={{ padding: '12px 16px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {b.departmentName}
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                         FY {b.fiscalYear}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600 }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {hasBudget ? formatAmount(b.budgetAmount) : '—'}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem' }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                         {formatAmount(b.currentSpend)}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem', color: Number(b.remainingBudget || 0) < 0 ? '#dc2626' : 'inherit', fontWeight: Number(b.remainingBudget || 0) < 0 ? 600 : 'normal' }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.9rem', color: Number(b.remainingBudget || 0) < 0 ? '#dc2626' : 'inherit', fontWeight: Number(b.remainingBudget || 0) < 0 ? 600 : 'normal', whiteSpace: 'nowrap' }}>
                         {hasBudget ? formatAmount(b.remainingBudget) : '—'}
                       </td>
                       <td style={{ padding: '12px 16px', minWidth: 130 }}>
@@ -267,7 +267,7 @@ export default function Budgets() {
                           <span style={{ color: 'var(--text-muted, #64748b)', fontSize: '0.85rem' }}>—</span>
                         )}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -280,7 +280,7 @@ export default function Budgets() {
                         </span>
                       </td>
                       {canEdit && (
-                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <button
                             type="button"
                             className="button-secondary"
@@ -321,6 +321,8 @@ export default function Budgets() {
             padding: 24,
             maxWidth: 450,
             width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
           }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 16px 0' }}>

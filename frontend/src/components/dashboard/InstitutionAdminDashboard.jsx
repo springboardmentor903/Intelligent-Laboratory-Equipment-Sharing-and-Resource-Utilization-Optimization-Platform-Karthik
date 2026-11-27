@@ -756,16 +756,16 @@ export default function InstitutionAdminDashboard() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '10px 12px' }}>Equipment & Tag</th>
-                      <th style={{ padding: '10px 12px' }}>Age</th>
-                      <th style={{ padding: '10px 12px' }}>Status</th>
-                      <th style={{ padding: '10px 12px' }}>Calibration</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Work Orders</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Downtime (h)</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Purchase Cost</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Maint Cost</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Usage Revenue</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>ROI %</th>
+                      <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Equipment & Tag</th>
+                      <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Age</th>
+                      <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Status</th>
+                      <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Calibration</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>Work Orders</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>Downtime (h)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>Purchase Cost</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>Maint Cost</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>Usage Revenue</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>ROI %</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -779,10 +779,10 @@ export default function InstitutionAdminDashboard() {
                             <div style={{ fontWeight: 600, color: 'var(--text)' }}>{item.equipmentName}</div>
                             <small style={{ color: 'var(--text-muted)' }}>{item.assetTag || 'Tag N/A'}</small>
                           </td>
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                             {item.ageMonths != null ? `${item.ageMonths} mo` : '—'}
                           </td>
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                             <span style={{
                               fontSize: '0.75rem',
                               fontWeight: 700,
@@ -794,7 +794,7 @@ export default function InstitutionAdminDashboard() {
                               {item.status}
                             </span>
                           </td>
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                             <span style={{
                               fontSize: '0.75rem',
                               fontWeight: 700,
@@ -806,22 +806,22 @@ export default function InstitutionAdminDashboard() {
                               {item.latestCalibrationState || 'NONE'}
                             </span>
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                             {item.workOrderCount ?? 0}
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                             {item.downtimeHours != null ? Number(item.downtimeHours).toFixed(1) : '0.0'}
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                             {item.purchaseCost != null ? `₹${Number(item.purchaseCost).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#ea580c' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#ea580c', whiteSpace: 'nowrap' }}>
                             ₹{Number(item.maintenanceCost || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7', fontWeight: 600 }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#0284c7', fontWeight: 600, whiteSpace: 'nowrap' }}>
                             ₹{Number(item.usageCharges || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                             <span style={{
                               fontWeight: 700,
                               padding: '2px 8px',
@@ -1060,10 +1060,10 @@ export default function InstitutionAdminDashboard() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '10px 12px' }}>Name & Email</th>
-                        <th style={{ padding: '10px 12px' }}>Roles</th>
-                        <th style={{ padding: '10px 12px' }}>Membership Status</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Actions</th>
+                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Name & Email</th>
+                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Roles</th>
+                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Membership Status</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1096,14 +1096,15 @@ export default function InstitutionAdminDashboard() {
                                       borderRadius: 4,
                                       fontSize: '0.75rem',
                                       fontWeight: 600,
-                                      marginRight: 4
+                                      marginRight: 4,
+                                      whiteSpace: 'nowrap'
                                     }}
                                   >
                                     {r.replaceAll('_', ' ')}
                                   </span>
                                 ))}
                               </td>
-                              <td style={{ padding: '10px 12px' }}>
+                              <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                                 <span style={{
                                   fontSize: '0.75rem',
                                   fontWeight: 700,
@@ -1115,7 +1116,7 @@ export default function InstitutionAdminDashboard() {
                                   {u.membershipStatus}
                                 </span>
                               </td>
-                              <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                              <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                                 {!isAdmin && !isDeactivated && (
                                   <button
                                     type="button"

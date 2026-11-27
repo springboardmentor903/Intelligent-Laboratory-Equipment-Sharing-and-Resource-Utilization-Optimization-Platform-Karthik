@@ -818,12 +818,12 @@ export default function Maintenance() {
                 <table className="module-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)', fontSize: '13px' }}>
-                      <th style={{ padding: '10px' }}>Equipment</th>
-                      <th style={{ padding: '10px' }}>Asset Tag</th>
-                      <th style={{ padding: '10px' }}>Incidents</th>
-                      <th style={{ padding: '10px' }}>Raw Downtime</th>
-                      <th style={{ padding: '10px' }}>Operating Downtime</th>
-                      <th style={{ padding: '10px' }}>% Hours Lost</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Equipment</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Asset Tag</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Incidents</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Raw Downtime</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Operating Downtime</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>% Hours Lost</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -833,11 +833,11 @@ export default function Maintenance() {
                       downtimeSummary.equipmentBreakdown.map((eq) => (
                         <tr key={eq.equipmentId} style={{ borderBottom: '1px solid var(--border)', fontSize: '13.5px' }}>
                           <td style={{ padding: '10px', fontWeight: 600 }}>{eq.equipmentName}</td>
-                          <td style={{ padding: '10px', color: 'var(--text-muted)' }}>{eq.assetTag || '—'}</td>
-                          <td style={{ padding: '10px' }}>{eq.workOrderCount}</td>
-                          <td style={{ padding: '10px' }}>{eq.rawDowntimeHours} hrs</td>
-                          <td style={{ padding: '10px', color: 'var(--color-danger, #ef4444)', fontWeight: 600 }}>{eq.operatingDowntimeHours} hrs</td>
-                          <td style={{ padding: '10px' }}>
+                          <td style={{ padding: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{eq.assetTag || '—'}</td>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{eq.workOrderCount}</td>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{eq.rawDowntimeHours} hrs</td>
+                          <td style={{ padding: '10px', color: 'var(--color-danger, #ef4444)', fontWeight: 600, whiteSpace: 'nowrap' }}>{eq.operatingDowntimeHours} hrs</td>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             <span style={{
                               padding: '2px 8px',
                               borderRadius: '4px',
@@ -943,15 +943,15 @@ export default function Maintenance() {
                 <table className="module-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)', fontSize: '13px' }}>
-                      <th style={{ padding: '10px' }}>Order #</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Order #</th>
                       <th style={{ padding: '10px' }}>Title</th>
                       <th style={{ padding: '10px' }}>Equipment</th>
-                      <th style={{ padding: '10px' }}>Type</th>
-                      <th style={{ padding: '10px' }}>Priority</th>
-                      <th style={{ padding: '10px' }}>Status</th>
-                      <th style={{ padding: '10px' }}>Assigned To</th>
-                      <th style={{ padding: '10px' }}>Scheduled / End</th>
-                      <th style={{ padding: '10px' }}>Actions</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Type</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Priority</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Status</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Assigned To</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Scheduled / End</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -959,7 +959,7 @@ export default function Maintenance() {
                       const statusBadge = getWorkOrderStatusBadge(wo.status)
                       return (
                         <tr key={wo.id} style={{ borderBottom: '1px solid var(--border)', fontSize: '13.5px' }}>
-                          <td style={{ padding: '10px', fontWeight: 700, fontFamily: 'monospace' }}>
+                          <td style={{ padding: '10px', fontWeight: 700, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                             <button
                               type="button"
                               style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', font: 'inherit', padding: 0 }}
@@ -970,17 +970,17 @@ export default function Maintenance() {
                           </td>
                           <td style={{ padding: '10px', fontWeight: 600 }}>{wo.title}</td>
                           <td style={{ padding: '10px' }}>{wo.equipmentName || `#${wo.equipmentId}`}</td>
-                          <td style={{ padding: '10px' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             <span style={{ fontSize: '11.5px', padding: '2px 6px', borderRadius: '4px', background: wo.workOrderType === 'PREVENTIVE' ? '#dbeafe' : '#fef3c7', color: wo.workOrderType === 'PREVENTIVE' ? '#1e40af' : '#92400e', fontWeight: 600 }}>
                               {wo.workOrderType}
                             </span>
                           </td>
-                          <td style={{ padding: '10px' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             <span style={{ fontSize: '11.5px', padding: '2px 6px', borderRadius: '4px', background: wo.priority === 'CRITICAL' || wo.priority === 'HIGH' ? '#fee2e2' : '#f3f4f6', color: wo.priority === 'CRITICAL' || wo.priority === 'HIGH' ? '#b91c1c' : '#374151', fontWeight: 600 }}>
                               {wo.priority}
                             </span>
                           </td>
-                          <td style={{ padding: '10px' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             <span style={{
                               fontSize: '11.5px',
                               padding: '2px 6px',
@@ -992,15 +992,15 @@ export default function Maintenance() {
                               {statusBadge.label}
                             </span>
                           </td>
-                          <td style={{ padding: '10px' }}>{wo.assignedTechnicianName || '—'}</td>
-                          <td style={{ padding: '10px', fontSize: '12px' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{wo.assignedTechnicianName || '—'}</td>
+                          <td style={{ padding: '10px', fontSize: '12px', whiteSpace: 'nowrap' }}>
                             {wo.status === 'IN_PROGRESS' ? (
                               <span>Due: {formatDate(wo.expectedEndTime)}</span>
                             ) : (
                               <span>{formatDate(wo.scheduledDate)}</span>
                             )}
                           </td>
-                          <td style={{ padding: '10px' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             <button
                               type="button"
                               className="secondary-button"
@@ -1271,12 +1271,12 @@ export default function Maintenance() {
                     <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)', fontSize: '13px' }}>
                       <th style={{ padding: '10px' }}>Request Title</th>
                       <th style={{ padding: '10px' }}>Equipment</th>
-                      <th style={{ padding: '10px' }}>Requester</th>
-                      <th style={{ padding: '10px' }}>Priority</th>
-                      <th style={{ padding: '10px' }}>Status</th>
-                      <th style={{ padding: '10px' }}>Date</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Requester</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Priority</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Status</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Date</th>
                       <th style={{ padding: '10px' }}>Remarks / WO</th>
-                      {isLabManager && requestSubTab === 'queue' && <th style={{ padding: '10px' }}>Review Actions</th>}
+                      {isLabManager && requestSubTab === 'queue' && <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Review Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1287,13 +1287,13 @@ export default function Maintenance() {
                           <small style={{ color: 'var(--text-muted)' }}>{req.description}</small>
                         </td>
                         <td style={{ padding: '10px' }}>{req.equipmentName || `#${req.equipmentId}`}</td>
-                        <td style={{ padding: '10px' }}>{req.requesterName || 'User'}</td>
-                        <td style={{ padding: '10px' }}>
+                        <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{req.requesterName || 'User'}</td>
+                        <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                           <span style={{ fontSize: '11.5px', padding: '2px 6px', borderRadius: '4px', background: req.priority === 'HIGH' || req.priority === 'CRITICAL' ? '#fee2e2' : '#f3f4f6', color: req.priority === 'HIGH' || req.priority === 'CRITICAL' ? '#b91c1c' : '#374151', fontWeight: 600 }}>
                             {req.priority}
                           </span>
                         </td>
-                        <td style={{ padding: '10px' }}>
+                        <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                           <span style={{
                             fontSize: '11.5px',
                             padding: '2px 6px',
@@ -1305,16 +1305,16 @@ export default function Maintenance() {
                             {req.status}
                           </span>
                         </td>
-                        <td style={{ padding: '10px', fontSize: '12px' }}>{formatDate(req.createdAt)}</td>
+                        <td style={{ padding: '10px', fontSize: '12px', whiteSpace: 'nowrap' }}>{formatDate(req.createdAt)}</td>
                         <td style={{ padding: '10px', fontSize: '12px' }}>
                           {req.workOrderNumber ? (
-                            <span style={{ fontWeight: 600, color: 'var(--primary)' }}>WO: {req.workOrderNumber}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap' }}>WO: {req.workOrderNumber}</span>
                           ) : (
                             <span>{req.reviewRemarks || '—'}</span>
                           )}
                         </td>
                         {isLabManager && requestSubTab === 'queue' && (
-                          <td style={{ padding: '10px' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             {req.status === 'PENDING' ? (
                               <div style={{ display: 'flex', gap: '6px' }}>
                                 <button
@@ -1400,12 +1400,12 @@ export default function Maintenance() {
                     <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)', fontSize: '13px' }}>
                       <th style={{ padding: '10px' }}>Schedule Title</th>
                       <th style={{ padding: '10px' }}>Equipment</th>
-                      <th style={{ padding: '10px' }}>Repeat Cycle</th>
-                      <th style={{ padding: '10px' }}>Last Completed</th>
-                      <th style={{ padding: '10px' }}>Next Due</th>
-                      <th style={{ padding: '10px' }}>Status</th>
-                      <th style={{ padding: '10px' }}>Active</th>
-                      {isLabManager && <th style={{ padding: '10px' }}>Actions</th>}
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Repeat Cycle</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Last Completed</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Next Due</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Status</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Active</th>
+                      {isLabManager && <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1418,10 +1418,10 @@ export default function Maintenance() {
                             <small style={{ color: 'var(--text-muted)' }}>{s.description || 'No description'}</small>
                           </td>
                           <td style={{ padding: '10px' }}>{s.equipmentName || `#${s.equipmentId}`}</td>
-                          <td style={{ padding: '10px' }}>Every {s.repeatPeriodDays} days</td>
-                          <td style={{ padding: '10px' }}>{formatDateOnly(s.lastCompletedDate)}</td>
-                          <td style={{ padding: '10px', fontWeight: 600 }}>{formatDateOnly(s.nextDueDate)}</td>
-                          <td style={{ padding: '10px' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>Every {s.repeatPeriodDays} days</td>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{formatDateOnly(s.lastCompletedDate)}</td>
+                          <td style={{ padding: '10px', fontWeight: 600, whiteSpace: 'nowrap' }}>{formatDateOnly(s.nextDueDate)}</td>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             <span style={{
                               fontSize: '11.5px',
                               padding: '2px 8px',
@@ -1433,7 +1433,7 @@ export default function Maintenance() {
                               {badge.label}
                             </span>
                           </td>
-                          <td style={{ padding: '10px' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             {isLabManager ? (
                               <button
                                 type="button"
@@ -1456,7 +1456,7 @@ export default function Maintenance() {
                             )}
                           </td>
                           {isLabManager && (
-                            <td style={{ padding: '10px' }}>
+                            <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', gap: '6px' }}>
                                 <button
                                   type="button"
@@ -1507,7 +1507,7 @@ export default function Maintenance() {
       {/* Report a Problem Modal */}
       {reportModalOpen && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '520px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 14px', fontSize: '1.2rem', fontWeight: 700 }}>Report Equipment Problem</h3>
             {reportError && <div className="module-alert" style={{ marginBottom: '12px' }}>{reportError}</div>}
             <form onSubmit={handleSubmitRequest} className="booking-form">
@@ -1563,7 +1563,7 @@ export default function Maintenance() {
       {/* Create Work Order Modal */}
       {createWoOpen && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '560px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 14px', fontSize: '1.2rem', fontWeight: 700 }}>Create New Work Order</h3>
             {createWoError && <div className="module-alert" style={{ marginBottom: '12px' }}>{createWoError}</div>}
             <form onSubmit={handleCreateWorkOrder} className="booking-form">
@@ -1644,7 +1644,7 @@ export default function Maintenance() {
       {/* Assign Technician Modal */}
       {assignModalWo && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 12px', fontSize: '1.15rem', fontWeight: 700 }}>Assign Technician</h3>
             <p style={{ margin: '0 0 14px', fontSize: '13px', color: 'var(--text-muted)' }}>Work Order: {assignModalWo.workOrderNumber}</p>
             <form onSubmit={handleAssignTechnician} className="booking-form">
@@ -1698,7 +1698,7 @@ export default function Maintenance() {
       {/* Start Work Order & Live Start-Preview Modal */}
       {startModalWo && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '540px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 8px', fontSize: '1.2rem', fontWeight: 700 }}>Start Work Order & Downtime</h3>
             <p style={{ margin: '0 0 14px', fontSize: '13px', color: 'var(--text-muted)' }}>
               Starting this work order moves <strong>{startModalWo.equipmentName}</strong> into <strong>UNDER_MAINTENANCE</strong> status. Any overlapping bookings will be automatically cancelled.
@@ -1761,7 +1761,7 @@ export default function Maintenance() {
       {/* Extend Work Order Modal */}
       {extendModalWo && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 12px', fontSize: '1.15rem', fontWeight: 700 }}>Extend Maintenance Window</h3>
             <form onSubmit={handleExtendWorkOrder} className="booking-form">
               <div className="form-field">
@@ -1930,7 +1930,7 @@ export default function Maintenance() {
       {/* Cancel Work Order Modal */}
       {cancelModalWo && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '420px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 12px', fontSize: '1.15rem', fontWeight: 700, color: '#ef4444' }}>Cancel Work Order</h3>
             <form onSubmit={handleCancelWorkOrder} className="booking-form">
               <div className="form-field">
@@ -1957,7 +1957,7 @@ export default function Maintenance() {
       {/* Approve Request Modal */}
       {approveModalReq && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 10px', fontSize: '1.15rem', fontWeight: 700 }}>Approve Maintenance Request</h3>
             <p style={{ margin: '0 0 14px', fontSize: '13px', color: 'var(--text-muted)' }}>
               Approving request "#{approveModalReq.id} - {approveModalReq.title}" will automatically generate a new <strong>CORRECTIVE</strong> work order.
@@ -1986,7 +1986,7 @@ export default function Maintenance() {
       {/* Reject Request Modal */}
       {rejectModalReq && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '440px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 10px', fontSize: '1.15rem', fontWeight: 700, color: '#ef4444' }}>Reject Maintenance Request</h3>
             <form onSubmit={handleRejectRequest} className="booking-form">
               <div className="form-field">
@@ -2013,7 +2013,7 @@ export default function Maintenance() {
       {/* Create / Edit Schedule Modal */}
       {createSchedOpen && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '520px', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '12px', padding: '24px', boxShadow: 'var(--shadow)' }}>
             <h3 style={{ margin: '0 0 14px', fontSize: '1.2rem', fontWeight: 700 }}>
               {editingSchedule ? 'Edit Preventive Schedule' : 'Create Preventive Schedule'}
             </h3>
